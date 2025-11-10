@@ -17,6 +17,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar código da aplicação
 COPY . .
 
+# Copiar e dar permissão ao script de start
+RUN chmod +x start.sh
+
 # Criar diretórios necessários
 RUN mkdir -p /app/data && \
     chmod 777 /app/data
@@ -29,4 +32,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:8000/api/estatisticas', timeout=5)" || exit 1
 
 # Comando para iniciar a aplicação
-CMD ["python", "-m", "uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./start.sh"]
