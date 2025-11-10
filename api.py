@@ -936,10 +936,14 @@ async def processar_fila():
     """Processa a fila de jobs sequencialmente"""
     global processing_active
     
-    print(f"🚀 INICIANDO processar_fila() - processing_active={processing_active}")
+    print(f"🚀 ========================================")
+    print(f"🚀 INICIANDO processar_fila()")
+    print(f"🚀 processing_active={processing_active}")
+    print(f"🚀 ========================================")
     
     try:
         while processing_active:
+            print(f"🔄 Loop: Buscando próximo job pendente...")
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             
@@ -949,23 +953,26 @@ async def processar_fila():
                 FROM queue_jobs qj
                 JOIN empresas e ON qj.empresa_id = e.id
                 WHERE qj.status = 'pending' AND qj.tentativas < qj.max_tentativas
-                ORDER BY qj.prioridade DESC, qj.data_criacao ASC
+                ORDER BY qj.prioridade DESC, qj.data_adicao ASC
                 LIMIT 1
             """)
             
             job = cursor.fetchone()
             if not job:
                 conn.close()
+                print(f"⏸️ Nenhum job pendente encontrado. Aguardando 5 segundos...")
                 # Aguardar 5 segundos antes de verificar novamente
                 await asyncio.sleep(5)
                 continue
             
             job_id, empresa_id, empresa_nome, cpf_socio, inscricao_estadual, senha = job
+            print(f"✅ Job encontrado: ID={job_id}, Empresa={empresa_nome} (ID={empresa_id})")
             
             # Marcar como executando
+            print(f"🔄 Marcando job {job_id} como 'running'...")
             cursor.execute("""
                 UPDATE queue_jobs 
-                SET status = 'running', data_inicio = datetime('now'), tentativas = tentativas + 1
+                SET status = 'running', data_processamento = datetime('now'), tentativas = tentativas + 1
                 WHERE id = ?
             """, (job_id,))
             conn.commit()
