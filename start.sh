@@ -24,6 +24,10 @@ chmod 777 /app/data
 
 echo "✅ Verificações completas!"
 echo "🚀 Iniciando servidor na porta 8000..."
+echo "📡 Servidor acessível em: http://0.0.0.0:8000"
+echo "🏥 Health check: http://localhost:8000/api/estatisticas"
+echo "📊 API Docs: http://localhost:8000/docs"
+echo ""
 
 # Iniciar uvicorn
 exec python -m uvicorn api:app --host 0.0.0.0 --port 8000 --log-level info
