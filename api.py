@@ -16,6 +16,10 @@ import base64
 
 app = FastAPI(title="SEFAZ Bot API", description="API para consultas SEFAZ", version="1.0.0")
 
+# Montar arquivos estáticos (CSS, JS)
+app.mount("/css", StaticFiles(directory="frontend/css"), name="css")
+app.mount("/js", StaticFiles(directory="frontend/js"), name="js")
+
 # Configuração do banco de dados
 DB_PATH = "sefaz_consulta.db"
 
@@ -457,9 +461,15 @@ consulta_status = {
 @app.get("/")
 async def read_root():
     """Serve a página principal"""
-    with open("frontend/index.html", "r", encoding="utf-8") as f:
-        content = f.read()
-    return HTMLResponse(content=content)
+    try:
+        with open("frontend/index.html", "r", encoding="utf-8") as f:
+            content = f.read()
+        return HTMLResponse(content=content)
+    except FileNotFoundError:
+        return HTMLResponse(
+            content="<h1>❌ Frontend não encontrado</h1><p>Verifique se o diretório 'frontend' existe.</p>",
+            status_code=404
+        )
 
 @app.get("/api/consultas", response_model=List[ConsultaResponse])
 async def get_consultas(
