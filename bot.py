@@ -246,6 +246,38 @@ class SEFAZBot:
                 )
             ''')
             
+            # Tabela de empresas
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS empresas (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome_empresa TEXT NOT NULL,
+                    cnpj TEXT NOT NULL UNIQUE,
+                    inscricao_estadual TEXT NOT NULL UNIQUE,
+                    cpf_socio TEXT NOT NULL,
+                    senha TEXT NOT NULL,
+                    observacoes TEXT,
+                    ativo BOOLEAN DEFAULT 1,
+                    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Tabela de fila de processamento
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS queue_jobs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    empresa_id INTEGER NOT NULL,
+                    status TEXT DEFAULT 'pending',
+                    prioridade INTEGER DEFAULT 0,
+                    data_adicao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    data_processamento TIMESTAMP,
+                    tentativas INTEGER DEFAULT 0,
+                    max_tentativas INTEGER DEFAULT 3,
+                    erro_detalhes TEXT,
+                    FOREIGN KEY (empresa_id) REFERENCES empresas(id)
+                )
+            ''')
+            
             # Adicionar colunas se não existirem (para bancos existentes)
             try:
                 cursor.execute('ALTER TABLE consultas ADD COLUMN tem_divida_pendente TEXT')
