@@ -816,13 +816,20 @@ async def adicionar_fila(request: QueueJobRequest, background_tasks: BackgroundT
             
             print(f"➕ Adicionando empresa {empresa_id} à fila")
             
-            # Adicionar à fila
-            cursor.execute("""
-                INSERT INTO queue_jobs (empresa_id, status, prioridade, data_adicao, tentativas, max_tentativas)
-                VALUES (?, 'pending', ?, datetime('now'), 0, 3)
-            """, (empresa_id, request.prioridade))
-            
-            job_ids.append(cursor.lastrowid)
+            # Adicionar à fila (sem especificar data_adicao, deixar o DEFAULT CURRENT_TIMESTAMP)
+            try:
+                cursor.execute("""
+                    INSERT INTO queue_jobs (empresa_id, status, prioridade, tentativas, max_tentativas)
+                    VALUES (?, 'pending', ?, 0, 3)
+                """, (empresa_id, request.prioridade))
+                
+                job_ids.append(cursor.lastrowid)
+                print(f"✅ Job ID {cursor.lastrowid} criado com sucesso")
+            except Exception as insert_error:
+                print(f"❌ ERRO AO INSERIR: {type(insert_error).__name__}: {insert_error}")
+                import traceback
+                traceback.print_exc()
+                raise
         
         conn.commit()
         conn.close()
