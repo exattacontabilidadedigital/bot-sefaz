@@ -1,0 +1,78 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# Virtual Environment
+env/
+venv/
+ENV/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+ANALISE_MELHORIAS.md
+ANTES_DEPOIS_EXCECOES.md
+DECORATOR_RETRY_IMPLEMENTADO.md
+REFATORAMENTO_PROGRESSO.md
+TOGGLE_HEADLESS.md
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Debug files
+debug_*.png
+debug_*.html
+screenshots/
+
+# Environment
+.env
+.env.local
+.env.*.local
+encryption_key.txt
+
+# Backups
+*_backup.*
+*.bak
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+temp/
+tmp/
+
+# Scripts de desenvolvimento
+abrir_chrome_debug.bat
+start.bat
+check_sefaz_login.py
+converter_senhas.py
+cancel_job.py

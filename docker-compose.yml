@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  bot-sefaz:
+    build: .
+    container_name: bot-sefaz
+    ports:
+      - "8000:8000"
+    volumes:
+      - bot-data:/app/data
+      - ./sefaz_consulta.db:/app/sefaz_consulta.db
+    environment:
+      # Configuração do Bot
+      - HEADLESS=${HEADLESS:-true}
+      - SEFAZ_URL=${SEFAZ_URL:-https://sefaznet.sefaz.ma.gov.br/sefaznet/login.do}
+      - TIMEOUT=${TIMEOUT:-30000}
+      
+      # Banco de Dados
+      - DB_PATH=${DB_PATH:-/app/sefaz_consulta.db}
+      
+      # Email (Opcional)
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - SMTP_TLS=${SMTP_TLS:-true}
+      - NOTIFY_TO=${NOTIFY_TO:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/api/estatisticas')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - bot-network
+
+volumes:
+  bot-data:
+    driver: local
+
+networks:
+  bot-network:
+    driver: bridge
