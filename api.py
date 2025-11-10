@@ -818,7 +818,7 @@ async def adicionar_fila(request: QueueJobRequest, background_tasks: BackgroundT
             
             # Adicionar à fila
             cursor.execute("""
-                INSERT INTO queue_jobs (empresa_id, status, prioridade, data_criacao, tentativas, max_tentativas)
+                INSERT INTO queue_jobs (empresa_id, status, prioridade, data_adicao, tentativas, max_tentativas)
                 VALUES (?, 'pending', ?, datetime('now'), 0, 3)
             """, (empresa_id, request.prioridade))
             
