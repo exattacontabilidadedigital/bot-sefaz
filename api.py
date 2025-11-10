@@ -861,14 +861,14 @@ async def listar_fila(limit: int = 50, offset: int = 0):
                 e.inscricao_estadual,
                 qj.status,
                 qj.prioridade,
-                qj.data_criacao,
-                qj.data_inicio,
+                qj.data_adicao,
+                qj.data_processamento,
                 qj.tentativas,
                 qj.max_tentativas,
                 qj.erro_detalhes
             FROM queue_jobs qj
             JOIN empresas e ON qj.empresa_id = e.id
-            ORDER BY qj.data_criacao DESC
+            ORDER BY qj.data_adicao DESC
             LIMIT ? OFFSET ?
         """, (limit, offset))
         
