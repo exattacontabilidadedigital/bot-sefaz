@@ -1013,7 +1013,7 @@ async def processar_fila():
                 if resultado:
                     cursor.execute("""
                         UPDATE queue_jobs 
-                        SET status = 'completed', data_conclusao = datetime('now')
+                        SET status = 'completed', data_processamento = datetime('now')
                         WHERE id = ?
                     """, (job_id,))
                     print(f"✅ Job {job_id} concluído com sucesso")
