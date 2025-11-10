@@ -12,11 +12,11 @@ ls -la
 
 # Verificar dependências instaladas
 echo "📦 Verificando dependências..."
-python -c "import fastapi; print('✅ FastAPI:', fastapi.__version__)"
-python -c "import uvicorn; print('✅ Uvicorn:', uvicorn.__version__)"
-python -c "import playwright; print('✅ Playwright:', playwright.__version__)"
-python -c "import cryptography; print('✅ Cryptography instalada')"
-python -c "import pydantic; print('✅ Pydantic:', pydantic.__version__)"
+python -c "import fastapi; print('✅ FastAPI:', fastapi.__version__)" || echo "⚠️  FastAPI não encontrado"
+python -c "import uvicorn; print('✅ Uvicorn:', uvicorn.__version__)" || echo "⚠️  Uvicorn não encontrado"
+python -c "import playwright; print('✅ Playwright instalado')" || echo "⚠️  Playwright não encontrado"
+python -c "import cryptography; print('✅ Cryptography instalada')" || echo "⚠️  Cryptography não encontrada"
+python -c "import pydantic; print('✅ Pydantic:', pydantic.__version__)" || echo "⚠️  Pydantic não encontrado"
 
 # Criar diretório de dados se não existir
 mkdir -p /app/data
