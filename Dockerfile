@@ -1,5 +1,5 @@
 # Dockerfile para Bot SEFAZ - Otimizado para Coolify
-FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
+FROM mcr.microsoft.com/playwright/python:v1.51.0-jammy
 
 # Variáveis de ambiente
 ENV PYTHONUNBUFFERED=1 \
