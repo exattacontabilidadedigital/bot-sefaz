@@ -21,7 +21,7 @@ app.mount("/css", StaticFiles(directory="frontend/css"), name="css")
 app.mount("/js", StaticFiles(directory="frontend/js"), name="js")
 
 # Configuração do banco de dados
-DB_PATH = "sefaz_consulta.db"
+DB_PATH = os.getenv('DB_PATH', 'sefaz_consulta.db')
 
 # Controle de processamento da fila
 processing_task = None
@@ -163,7 +163,7 @@ async def criar_empresa(empresa: EmpresaRequest):
         if not empresa.senha or not empresa.senha.strip():
             raise HTTPException(status_code=400, detail="Senha é obrigatória para criar empresa")
             
-        conn = sqlite3.connect("sefaz_consulta.db")
+        conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -222,7 +222,7 @@ async def listar_empresas(
 ):
     """Listar empresas com filtros e paginação"""
     try:
-        conn = sqlite3.connect("sefaz_consulta.db")
+        conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -281,7 +281,7 @@ async def contar_empresas(
 ):
     """Contar total de empresas com filtros"""
     try:
-        conn = sqlite3.connect("sefaz_consulta.db")
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         # Construir query com filtros
@@ -315,7 +315,7 @@ async def contar_empresas(
 async def obter_empresa(empresa_id: int):
     """Obter empresa por ID"""
     try:
-        conn = sqlite3.connect("sefaz_consulta.db")
+        conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -348,7 +348,7 @@ async def obter_empresa(empresa_id: int):
 async def atualizar_empresa(empresa_id: int, empresa: EmpresaRequest):
     """Atualizar empresa"""
     try:
-        conn = sqlite3.connect("sefaz_consulta.db")
+        conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -415,7 +415,7 @@ async def atualizar_empresa(empresa_id: int, empresa: EmpresaRequest):
 async def excluir_empresa(empresa_id: int):
     """Excluir empresa"""
     try:
-        conn = sqlite3.connect("sefaz_consulta.db")
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         # Verificar se empresa existe
@@ -482,7 +482,7 @@ async def get_consultas(
 ):
     """Retorna consultas com filtros e paginação"""
     try:
-        conn = sqlite3.connect("sefaz_consulta.db")
+        conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -575,7 +575,7 @@ async def get_consultas(
 async def delete_consulta(consulta_id: int):
     """Exclui uma consulta específica"""
     try:
-        conn = sqlite3.connect("sefaz_consulta.db")
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         # Verificar se a consulta existe
@@ -608,7 +608,7 @@ async def get_consultas_count(
 ):
     """Retorna o total de consultas com filtros aplicados"""
     try:
-        conn = sqlite3.connect("sefaz_consulta.db")
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         # Construir query com filtros
@@ -739,7 +739,7 @@ async def run_consulta_background(usuario: Optional[str], senha: Optional[str], 
 async def get_estatisticas():
     """Retorna estatísticas das consultas (apenas últimas consultas por empresa)"""
     try:
-        conn = sqlite3.connect("sefaz_consulta.db")
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         # Subquery para últimas consultas
