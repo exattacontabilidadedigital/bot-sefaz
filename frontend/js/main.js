@@ -15,8 +15,6 @@ window.mensagensUI = mensagensUI;
 
 // Inicializar aplicação quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('Inicializando aplicação...');
-    
     // Inicializar ícones Lucide
     initLucideIcons();
     
@@ -40,8 +38,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Setup do toggle de modo headless
     setupHeadlessToggle();
-    
-    console.log('Aplicação inicializada com sucesso!');
 });
 
 function setupConsultasListeners() {

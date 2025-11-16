@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from playwright.async_api import async_playwright, Page, Browser
 import sqlite3
 from datetime import datetime
@@ -8,6 +9,13 @@ from dotenv import load_dotenv
 import smtplib
 from email.message import EmailMessage
 from typing import Optional, Dict, Any, Tuple
+
+# Corrigir policy do asyncio no Windows para Python 3.13+
+if sys.platform == 'win32' and sys.version_info >= (3, 8):
+    try:
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    except AttributeError:
+        pass  # Versões antigas do Python podem não ter essa policy
 
 # Importar módulos customizados
 from bot_constants import *
@@ -63,6 +71,16 @@ class BrowserManager:
     async def __aenter__(self):
         """Inicializa o navegador ao entrar no contexto"""
         try:
+            # Garantir que a policy correta está ativa antes de iniciar Playwright
+            if sys.platform == 'win32' and sys.version_info >= (3, 8):
+                try:
+                    import asyncio
+                    current_policy = asyncio.get_event_loop_policy()
+                    if not isinstance(current_policy, asyncio.WindowsSelectorEventLoopPolicy):
+                        logger.warning(f"⚠️ Policy atual é {current_policy.__class__.__name__}, Playwright precisa de WindowsSelectorEventLoopPolicy")
+                except Exception as e:
+                    logger.warning(f"⚠️ Não foi possível verificar event loop policy: {e}")
+            
             logger.info("🌐 Iniciando navegador...")
             self.playwright = await async_playwright().start()
             
@@ -958,12 +976,22 @@ class SEFAZBot:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
+            # Extrair link do recibo do conteúdo HTML se existir
+            link_recibo = None
+            conteudo = dados.get('conteudo_html') or dados.get('conteudo_mensagem', '')
+            if conteudo and 'listIReciboDief' in conteudo:
+                import re
+                match = re.search(r'href=["\']([^"\']*listIReciboDief\.do[^"\']*)["\']', conteudo, re.IGNORECASE)
+                if match:
+                    link_recibo = match.group(1).replace('&amp;', '&')
+                    logger.info(f"🔗 Link do recibo extraído: {link_recibo}")
+            
             cursor.execute('''
                 INSERT INTO mensagens_sefaz 
                 (inscricao_estadual, cpf_socio, enviada_por, data_envio, assunto, 
                  classificacao, tributo, tipo_mensagem, numero_documento, vencimento, 
-                 conteudo_mensagem)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 conteudo_mensagem, link_recibo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 dados.get('inscricao_estadual'),
                 dados.get('cpf_socio'),
@@ -975,7 +1003,8 @@ class SEFAZBot:
                 dados.get('tipo_mensagem'),
                 dados.get('numero_documento'),
                 dados.get('vencimento'),
-                dados.get('conteudo_mensagem')
+                dados.get('conteudo_mensagem'),
+                link_recibo
             ))
             
             conn.commit()
@@ -984,13 +1013,560 @@ class SEFAZBot:
         except Exception as e:
             logger.error(f"❌ Erro ao salvar mensagem: {e}")
 
-    async def check_and_open_sistemas_menu(self, page):
+    async def processar_mensagens_com_ciencia_completa(self, page, inscricao_estadual_contexto=None):
+        """
+        Processa mensagens SEFAZ com fluxo completo de ciência.
+        
+        Fluxo:
+        1. Detecta link para abrir mensagem
+        2. Clica e abre a mensagem
+        3. Extrai todos os dados (competência DIEF, status, chave, conteúdo HTML)
+        4. Salva no banco de dados
+        5. Clica em "Informar Ciência"
+        6. Clica em "OK"
+        7. Clica em "Voltar"
+        8. Retorna para processar próxima mensagem
+        
+        Args:
+            page: Página do navegador
+            inscricao_estadual_contexto: IE da empresa sendo consultada (opcional)
+        
+        Returns:
+            int: Número de mensagens processadas com sucesso
+        """
+        try:
+            logger.info("📬 ========================================")
+            logger.info("📬 PROCESSANDO MENSAGENS COM CIÊNCIA")
+            logger.info("📬 ========================================")
+            
+            # Buscar todos os links de abrir mensagem (ícone de mensagem nova)
+            links_mensagens = await page.query_selector_all("a[href*='abrirMensagem'] img[src*='ic_msg_nova.png']")
+            
+            if not links_mensagens or len(links_mensagens) == 0:
+                logger.info("ℹ️ Não há mensagens para processar")
+                return 0
+            
+            logger.info(f"📨 Encontradas {len(links_mensagens)} mensagem(ns) para processar")
+            mensagens_processadas = 0
+            
+            # Processar cada mensagem
+            for idx in range(len(links_mensagens)):
+                try:
+                    logger.info(f"")
+                    logger.info(f"{'='*60}")
+                    logger.info(f"📖 PROCESSANDO MENSAGEM {idx + 1}/{len(links_mensagens)}")
+                    logger.info(f"{'='*60}")
+                    
+                    # Re-buscar os links a cada iteração (a página muda após processar cada mensagem)
+                    links_atualizados = await page.query_selector_all("a[href*='abrirMensagem'] img[src*='ic_msg_nova.png']")
+                    
+                    if idx >= len(links_atualizados):
+                        logger.info("✅ Todas as mensagens foram processadas")
+                        break
+                    
+                    # Pegar o link pai da imagem
+                    img_element = links_atualizados[idx]
+                    link_element = await img_element.evaluate_handle("el => el.closest('a')")
+                    
+                    # 1. ABRIR MENSAGEM
+                    logger.info("1️⃣ Abrindo mensagem...")
+                    await self.human_click(page, link_element)
+                    await page.wait_for_load_state("networkidle", timeout=15000)
+                    await page.wait_for_timeout(self.random_delay(1500, 2500))
+                    logger.info("✅ Mensagem aberta")
+                    
+                    # Screenshot para debug (opcional)
+                    try:
+                        screenshot_path = f"mensagem_{idx + 1}_aberta.png"
+                        await page.screenshot(path=screenshot_path)
+                        logger.info(f"   📸 Screenshot salvo: {screenshot_path}")
+                    except Exception as e:
+                        logger.warning(f"   ⚠️ Erro ao capturar screenshot: {e}")
+                    
+                    # 2. EXTRAIR DADOS DA MENSAGEM
+                    logger.info("2️⃣ Extraindo dados da mensagem...")
+                    dados_msg = await self.extrair_dados_mensagem_completa(page, inscricao_estadual_contexto)
+                    
+                    if dados_msg:
+                        logger.info(f"✅ Dados extraídos:")
+                        logger.info(f"   - Assunto: {dados_msg.get('assunto', 'N/A')}")
+                        logger.info(f"   - Competência DIEF: {dados_msg.get('competencia_dief', 'N/A')}")
+                        logger.info(f"   - Status DIEF: {dados_msg.get('status_dief', 'N/A')}")
+                        logger.info(f"   - Chave DIEF: {dados_msg.get('chave_dief', 'N/A')}")
+                        
+                        # 3. SALVAR NO BANCO
+                        logger.info("3️⃣ Salvando no banco de dados...")
+                        msg_id = self.salvar_mensagem_completa(dados_msg)
+                        if msg_id:
+                            logger.info(f"✅ Mensagem salva no banco com ID: {msg_id}")
+                            # Verificar se realmente foi salvo
+                            if self.verificar_mensagem_salva(msg_id):
+                                logger.info(f"✅ Mensagem ID {msg_id} verificada no banco!")
+                            else:
+                                logger.error(f"❌ Mensagem ID {msg_id} NÃO foi encontrada no banco!")
+                        else:
+                            logger.error("❌ Falha ao salvar mensagem!")
+                    else:
+                        logger.warning("⚠️ Nenhum dado extraído da mensagem")
+                    
+                    # 4. CLICAR EM "INFORMAR CIÊNCIA"
+                    logger.info("4️⃣ Clicando em 'Informar Ciência'...")
+                    btn_ciencia = await page.query_selector("button.btn-success:has-text('Informar Ciência')")
+                    if btn_ciencia:
+                        await self.human_click(page, btn_ciencia)
+                        await page.wait_for_timeout(self.random_delay(1000, 1500))
+                        logger.info("✅ Botão 'Informar Ciência' clicado")
+                        
+                        # 5. CLICAR EM "OK" (confirmação)
+                        logger.info("5️⃣ Clicando em 'OK'...")
+                        await page.wait_for_timeout(self.random_delay(500, 1000))
+                        btn_ok = await page.query_selector("input[type='button'][value='OK'].btn-primary")
+                        if btn_ok:
+                            await self.human_click(page, btn_ok)
+                            await page.wait_for_timeout(self.random_delay(1000, 1500))
+                            logger.info("✅ Botão 'OK' clicado")
+                        else:
+                            logger.warning("⚠️ Botão 'OK' não encontrado")
+                    else:
+                        logger.warning("⚠️ Botão 'Informar Ciência' não encontrado")
+                    
+                    # 6. CLICAR EM "VOLTAR"
+                    logger.info("6️⃣ Clicando em 'Voltar'...")
+                    btn_voltar = await page.query_selector("button.btn-warning:has-text('Voltar')")
+                    if btn_voltar:
+                        await self.human_click(page, btn_voltar)
+                        await page.wait_for_load_state("networkidle", timeout=15000)
+                        await page.wait_for_timeout(self.random_delay(1500, 2500))
+                        logger.info("✅ Voltou para lista de mensagens")
+                    else:
+                        logger.warning("⚠️ Botão 'Voltar' não encontrado")
+                    
+                    mensagens_processadas += 1
+                    logger.info(f"✅ Mensagem {idx + 1} processada com sucesso!")
+                    
+                except Exception as e_msg:
+                    logger.error(f"❌ Erro ao processar mensagem {idx + 1}: {e_msg}")
+                    logger.error(f"   Tentando voltar para lista de mensagens...")
+                    try:
+                        # Tentar voltar em caso de erro
+                        btn_voltar = await page.query_selector("button.btn-warning:has-text('Voltar')")
+                        if btn_voltar:
+                            await btn_voltar.click()
+                            await page.wait_for_timeout(2000)
+                    except:
+                        pass
+                    continue
+            
+            logger.info(f"")
+            logger.info(f"{'='*60}")
+            logger.info(f"✅ PROCESSAMENTO CONCLUÍDO")
+            logger.info(f"✅ Total: {mensagens_processadas}/{len(links_mensagens)} mensagens")
+            logger.info(f"{'='*60}")
+            
+            return mensagens_processadas
+            
+        except Exception as e:
+            logger.error(f"❌ Erro geral ao processar mensagens: {e}")
+            return 0
+
+    async def extrair_dados_mensagem_completa(self, page, inscricao_estadual_contexto=None):
+        """
+        Extrai todos os dados de uma mensagem SEFAZ aberta, incluindo:
+        - Dados gerais (enviada por, data, assunto, etc)
+        - Competência DIEF (extraída do conteúdo da mensagem)
+        - Status DIEF (extraída do conteúdo: "DIEF PROCESSADA", etc)
+        - Chave DIEF (extraída do conteúdo: "Chave de segurança: XXXX-XXXX...")
+        - Conteúdo HTML completo da mensagem
+        
+        Args:
+            page: Página do navegador
+            inscricao_estadual_contexto: IE da empresa sendo consultada (usada como fallback)
+        
+        Returns:
+            dict: Dicionário com todos os dados extraídos
+        """
+        try:
+            dados = {}
+            
+            # Se temos contexto da empresa, usar como padrão (pode ser sobrescrito pela mensagem)
+            if inscricao_estadual_contexto:
+                dados['inscricao_estadual'] = inscricao_estadual_contexto
+                logger.info(f"   📌 Usando IE do contexto: {inscricao_estadual_contexto}")
+            
+            # Extrair dados da tabela de informações
+            logger.info("   📋 Extraindo dados da tabela...")
+            
+            # Enviada por
+            try:
+                el = await page.query_selector("th:has-text('Enviada por:') + td")
+                if el:
+                    dados['enviada_por'] = (await el.text_content()).strip()
+            except: pass
+            
+            # Data do Envio
+            try:
+                el = await page.query_selector("th:has-text('Data do Envio:') + td")
+                if el:
+                    dados['data_envio'] = (await el.text_content()).strip()
+            except: pass
+            
+            # Assunto
+            try:
+                el = await page.query_selector("th:has-text('Assunto:') + td")
+                if el:
+                    dados['assunto'] = (await el.text_content()).strip()
+            except: pass
+            
+            # Classificação
+            try:
+                el = await page.query_selector("th:has-text('Classificação:') + td")
+                if el:
+                    dados['classificacao'] = (await el.text_content()).strip()
+            except: pass
+            
+            # Tributo
+            try:
+                el = await page.query_selector("th:has-text('Tributo:') + td")
+                if el:
+                    dados['tributo'] = (await el.text_content()).strip()
+            except: pass
+            
+            # Tipo da Mensagem
+            try:
+                el = await page.query_selector("th:has-text('Tipo da Mensagem:') + td")
+                if el:
+                    dados['tipo_mensagem'] = (await el.text_content()).strip()
+            except: pass
+            
+            # Inscrição Estadual
+            try:
+                el = await page.query_selector("th:has-text('Inscrição Estadual:') + td")
+                if el:
+                    ie_texto = (await el.text_content()).strip()
+                    # Formato: "125383983 - A&D SOLUTIONS LTDA"
+                    if " - " in ie_texto:
+                        dados['inscricao_estadual'] = ie_texto.split(" - ")[0].strip()
+                        dados['nome_empresa'] = ie_texto.split(" - ")[1].strip()
+                    else:
+                        dados['inscricao_estadual'] = ie_texto
+            except: pass
+            
+            # Número do Documento
+            try:
+                el = await page.query_selector("th:has-text('Número do Documento:') + td")
+                if el:
+                    dados['numero_documento'] = (await el.text_content()).strip()
+            except: pass
+            
+            # Vencimento
+            try:
+                el = await page.query_selector("th:has-text('Vencimento:') + td")
+                if el:
+                    dados['vencimento'] = (await el.text_content()).strip()
+            except: pass
+            
+            # Data da Leitura
+            try:
+                el = await page.query_selector("th:has-text('Data da Leitura:') + td")
+                if el:
+                    dados['data_leitura'] = (await el.text_content()).strip()
+            except: pass
+            
+            # EXTRAIR CONTEÚDO HTML COMPLETO DA MENSAGEM
+            logger.info("   📄 Extraindo conteúdo HTML da mensagem...")
+            try:
+                conteudo_element = await page.query_selector("table.table-tripped tbody tr td")
+                if conteudo_element:
+                    conteudo_html = await conteudo_element.inner_html()
+                    dados['conteudo_html'] = conteudo_html
+                    logger.info(f"      ✓ HTML extraído: {len(conteudo_html)} caracteres")
+                    
+                    conteudo_texto = await conteudo_element.text_content()
+                    dados['conteudo_mensagem'] = conteudo_texto.strip()
+                    logger.info(f"      ✓ Texto extraído: {len(conteudo_texto)} caracteres")
+                    logger.info(f"      📝 Preview: {conteudo_texto[:200]}...")
+                    
+                    # EXTRAIR DADOS ESPECÍFICOS DA DIEF DO CONTEÚDO
+                    logger.info("   🔍 Extraindo dados da DIEF do conteúdo...")
+                    
+                    # Competência DIEF (Período da DIEF: 202510)
+                    import re
+                    match_competencia = re.search(r'Período da DIEF:\s*(\d{6})', conteudo_texto)
+                    if match_competencia:
+                        dados['competencia_dief'] = match_competencia.group(1)
+                        logger.info(f"      ✓ Competência: {dados['competencia_dief']}")
+                    else:
+                        logger.warning(f"      ⚠️ Competência DIEF não encontrada")
+                    
+                    # Status DIEF (Situação: DIEF PROCESSADA)
+                    match_status = re.search(r'Situação:\s*([^\n]+)', conteudo_texto)
+                    if match_status:
+                        dados['status_dief'] = match_status.group(1).strip()
+                        logger.info(f"      ✓ Status: {dados['status_dief']}")
+                    else:
+                        logger.warning(f"      ⚠️ Status DIEF não encontrado")
+                    
+                    # Chave de segurança DIEF
+                    match_chave = re.search(r'Chave de segurança:\s*([\d-]+)', conteudo_texto)
+                    if match_chave:
+                        dados['chave_dief'] = match_chave.group(1).strip()
+                        logger.info(f"      ✓ Chave: {dados['chave_dief']}")
+                    else:
+                        logger.warning(f"      ⚠️ Chave DIEF não encontrada")
+                    
+                    # Protocolo DIEF
+                    match_protocolo = re.search(r'Protocolo DIEF:\s*(\d+)', conteudo_texto)
+                    if match_protocolo:
+                        dados['protocolo_dief'] = match_protocolo.group(1).strip()
+                        logger.info(f"      ✓ Protocolo: {dados['protocolo_dief']}")
+                    else:
+                        logger.warning(f"      ⚠️ Protocolo DIEF não encontrado")
+                else:
+                    logger.warning(f"   ⚠️ Elemento de conteúdo não encontrado")
+                    
+            except Exception as e:
+                logger.warning(f"   ⚠️ Erro ao extrair conteúdo HTML: {e}")
+            
+            # Log resumo de dados extraídos
+            logger.info("   📊 RESUMO DOS DADOS EXTRAÍDOS:")
+            logger.info(f"      - IE: {dados.get('inscricao_estadual', 'N/A')}")
+            logger.info(f"      - Empresa: {dados.get('nome_empresa', 'N/A')}")
+            logger.info(f"      - Assunto: {dados.get('assunto', 'N/A')}")
+            logger.info(f"      - Data Envio: {dados.get('data_envio', 'N/A')}")
+            logger.info(f"      - Competência DIEF: {dados.get('competencia_dief', 'N/A')}")
+            logger.info(f"      - Status DIEF: {dados.get('status_dief', 'N/A')}")
+            logger.info(f"      - Chave DIEF: {dados.get('chave_dief', 'N/A')}")
+            logger.info(f"      - Protocolo: {dados.get('protocolo_dief', 'N/A')}")
+            logger.info(f"      - HTML: {len(dados.get('conteudo_html', '')) if dados.get('conteudo_html') else 0} chars")
+            logger.info(f"      - Texto: {len(dados.get('conteudo_mensagem', '')) if dados.get('conteudo_mensagem') else 0} chars")
+            
+            return dados
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao extrair dados da mensagem: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+
+    def salvar_mensagem_completa(self, dados: Dict[str, Any]) -> int:
+        """
+        Salva mensagem completa no banco de dados incluindo dados da DIEF
+        
+        Args:
+            dados: Dicionário com todos os dados da mensagem
+            
+        Returns:
+            int: ID da mensagem salva ou None em caso de erro
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Verificar se a tabela tem as colunas necessárias
+            cursor.execute("PRAGMA table_info(mensagens_sefaz)")
+            colunas_existentes = [row[1] for row in cursor.fetchall()]
+            
+            # Se não tem as novas colunas, adicionar
+            novas_colunas = {
+                'competencia_dief': 'TEXT',
+                'status_dief': 'TEXT',
+                'chave_dief': 'TEXT',
+                'protocolo_dief': 'TEXT',
+                'conteudo_html': 'TEXT',
+                'nome_empresa': 'TEXT',
+                'data_leitura': 'TEXT',
+                'data_ciencia': 'TEXT',
+                'link_recibo': 'TEXT'
+            }
+            
+            for col_name, col_type in novas_colunas.items():
+                if col_name not in colunas_existentes:
+                    try:
+                        cursor.execute(f"ALTER TABLE mensagens_sefaz ADD COLUMN {col_name} {col_type}")
+                        logger.info(f"   ✓ Coluna {col_name} adicionada")
+                    except sqlite3.OperationalError:
+                        pass  # Coluna já existe
+            
+            conn.commit()
+            
+            # Extrair link do recibo do conteúdo HTML
+            link_recibo = None
+            conteudo_html = dados.get('conteudo_html', '')
+            if conteudo_html and 'listIReciboDief' in conteudo_html:
+                import re
+                match = re.search(r'href=["\']([^"\']*listIReciboDief\.do[^"\']*)["\']', conteudo_html, re.IGNORECASE)
+                if match:
+                    link_recibo = match.group(1).replace('&amp;', '&')
+                    logger.info(f"   🔗 Link do recibo extraído: {link_recibo}")
+            
+            # Inserir mensagem com data de ciência atual
+            from datetime import datetime
+            data_ciencia = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Log de dados antes de inserir
+            logger.info("   💾 Preparando para salvar mensagem...")
+            logger.info(f"      - IE: {dados.get('inscricao_estadual')}")
+            logger.info(f"      - Empresa: {dados.get('nome_empresa')}")
+            logger.info(f"      - Assunto: {dados.get('assunto')}")
+            logger.info(f"      - Competência: {dados.get('competencia_dief')}")
+            logger.info(f"      - Status: {dados.get('status_dief')}")
+            logger.info(f"      - HTML: {'Sim' if dados.get('conteudo_html') else 'Não'} ({len(dados.get('conteudo_html', ''))} chars)")
+            logger.info(f"      - Texto: {'Sim' if dados.get('conteudo_mensagem') else 'Não'} ({len(dados.get('conteudo_mensagem', ''))} chars)")
+            
+            cursor.execute('''
+                INSERT INTO mensagens_sefaz 
+                (inscricao_estadual, cpf_socio, enviada_por, data_envio, assunto, 
+                 classificacao, tributo, tipo_mensagem, numero_documento, vencimento, 
+                 conteudo_mensagem, competencia_dief, status_dief, chave_dief, 
+                 protocolo_dief, conteudo_html, nome_empresa, data_leitura, data_ciencia, link_recibo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                dados.get('inscricao_estadual'),
+                dados.get('cpf_socio'),
+                dados.get('enviada_por'),
+                dados.get('data_envio'),
+                dados.get('assunto'),
+                dados.get('classificacao'),
+                dados.get('tributo'),
+                dados.get('tipo_mensagem'),
+                dados.get('numero_documento'),
+                dados.get('vencimento'),
+                dados.get('conteudo_mensagem'),
+                dados.get('competencia_dief'),
+                dados.get('status_dief'),
+                dados.get('chave_dief'),
+                dados.get('protocolo_dief'),
+                dados.get('conteudo_html'),
+                dados.get('nome_empresa'),
+                dados.get('data_leitura'),
+                data_ciencia,
+                link_recibo
+            ))
+            
+            msg_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+            logger.info(f"   ✅ Mensagem salva no banco de dados com ID: {msg_id}")
+            logger.info(f"   📋 Campos salvos:")
+            logger.info(f"      - inscricao_estadual: {dados.get('inscricao_estadual')}")
+            logger.info(f"      - nome_empresa: {dados.get('nome_empresa')}")
+            logger.info(f"      - assunto: {dados.get('assunto')}")
+            logger.info(f"      - data_envio: {dados.get('data_envio')}")
+            logger.info(f"      - competencia_dief: {dados.get('competencia_dief')}")
+            logger.info(f"      - status_dief: {dados.get('status_dief')}")
+            logger.info(f"      - chave_dief: {dados.get('chave_dief')}")
+            logger.info(f"      - protocolo_dief: {dados.get('protocolo_dief')}")
+            logger.info(f"      - conteudo_html: {len(dados.get('conteudo_html', ''))} caracteres")
+            logger.info(f"      - conteudo_mensagem: {len(dados.get('conteudo_mensagem', ''))} caracteres")
+            logger.info(f"      - data_ciencia: {data_ciencia}")
+            
+            return msg_id
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao salvar mensagem completa: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+    
+    def verificar_mensagem_salva(self, msg_id: int) -> bool:
+        """
+        Verifica se a mensagem foi realmente salva no banco de dados
+        
+        Args:
+            msg_id: ID da mensagem para verificar
+            
+        Returns:
+            bool: True se a mensagem existe e tem dados completos, False caso contrário
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT id, inscricao_estadual, nome_empresa, assunto, 
+                       competencia_dief, status_dief, chave_dief,
+                       LENGTH(conteudo_html) as html_size,
+                       LENGTH(conteudo_mensagem) as texto_size
+                FROM mensagens_sefaz 
+                WHERE id = ?
+            """, (msg_id,))
+            
+            row = cursor.fetchone()
+            conn.close()
+            
+            if row:
+                logger.info(f"   🔍 VERIFICAÇÃO DA MENSAGEM ID {msg_id}:")
+                logger.info(f"      - IE: {row['inscricao_estadual']}")
+                logger.info(f"      - Empresa: {row['nome_empresa']}")
+                logger.info(f"      - Assunto: {row['assunto']}")
+                logger.info(f"      - Competência: {row['competencia_dief']}")
+                logger.info(f"      - Status: {row['status_dief']}")
+                logger.info(f"      - Chave: {row['chave_dief']}")
+                logger.info(f"      - HTML: {row['html_size']} bytes")
+                logger.info(f"      - Texto: {row['texto_size']} bytes")
+                
+                # Verificar se campos importantes estão preenchidos
+                if row['html_size'] and row['html_size'] > 100:
+                    logger.info(f"   ✅ Conteúdo HTML está completo!")
+                else:
+                    logger.warning(f"   ⚠️ Conteúdo HTML parece vazio ou incompleto!")
+                    
+                if row['texto_size'] and row['texto_size'] > 50:
+                    logger.info(f"   ✅ Conteúdo de texto está completo!")
+                else:
+                    logger.warning(f"   ⚠️ Conteúdo de texto parece vazio ou incompleto!")
+                
+                return True
+            else:
+                logger.error(f"   ❌ Mensagem ID {msg_id} não encontrada no banco!")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ Erro ao verificar mensagem: {e}")
+            return False
+
+    async def check_and_open_sistemas_menu(self, page, inscricao_estadual=None):
         """Verifica se o botão 'Sistemas' (ícone cog) está visível e abre o menu.
 
+        Args:
+            page: Página do navegador
+            inscricao_estadual: IE da empresa sendo consultada (para associar mensagens)
+
         Retorna True se o menu foi aberto, False caso contrário.
+        
+        IMPORTANTE: Antes de tentar abrir o menu, verifica se há mensagens aguardando ciência
+        que bloqueiam o acesso aos serviços.
         """
         try:
             logger.info("Verificando menu 'Sistemas'...")
+            
+            # NOVA VERIFICAÇÃO: Detectar aviso de mensagens aguardando ciência ANTES de tentar menu
+            logger.info("🔍 Verificando se há mensagens bloqueando o acesso ao menu...")
+            aviso_mensagem = await page.query_selector("thead tr td span[style*='red']")
+            if aviso_mensagem:
+                aviso_texto = await aviso_mensagem.text_content()
+                if aviso_texto and "AGUARDANDO CIÊNCIA" in aviso_texto.upper():
+                    logger.warning("⚠️ ===============================================")
+                    logger.warning("⚠️ ATENÇÃO: Há mensagens aguardando ciência!")
+                    logger.warning("⚠️ O menu está bloqueado até dar ciência")
+                    logger.warning("⚠️ ===============================================")
+                    logger.info("📬 Processando mensagens antes de acessar o menu...")
+                    
+                    # Processar as mensagens pendentes
+                    mensagens_processadas = await self.processar_mensagens_com_ciencia_completa(page, inscricao_estadual)
+                    
+                    if mensagens_processadas:
+                        logger.info("✅ Mensagens processadas com sucesso!")
+                        logger.info("🔄 Aguardando página atualizar...")
+                        await page.wait_for_timeout(self.random_delay(2000, 3000))
+                        
+                        # Dar um F5 para atualizar a página
+                        await page.reload(wait_until="domcontentloaded", timeout=15000)
+                        await page.wait_for_timeout(self.random_delay(2000, 3000))
+                        logger.info("✅ Página atualizada após processar mensagens")
+                    else:
+                        logger.warning("⚠️ Não foi possível processar as mensagens")
             
             # Tempo máximo de espera: 60 segundos
             max_wait_time = 60
@@ -1551,7 +2127,7 @@ class SEFAZBot:
             # Se não estiver aberto, tentar abrir
             if not menu_aberto:
                 logger.warning("   Menu não está aberto, tentando abrir menu Sistemas...")
-                menu_opened = await self.check_and_open_sistemas_menu(page)
+                menu_opened = await self.check_and_open_sistemas_menu(page, inscricao_estadual)
                 if not menu_opened:
                     logger.error("   ❌ Não foi possível abrir menu Sistemas")
                     return False
@@ -2098,7 +2674,7 @@ class SEFAZBot:
             # Verificar especificamente a mensagem "Nenhum resultado foi encontrado"
             if "Nenhum resultado foi encontrado" in page_content:
                 logger.info("TVI: Encontrada mensagem 'Nenhum resultado foi encontrado'")
-                return "NÃO"
+                return 0.0
             
             # Verificar outras mensagens de ausência de dados
             no_data_messages = [
@@ -2112,7 +2688,7 @@ class SEFAZBot:
             for message in no_data_messages:
                 if message in page_content:
                     logger.info(f"TVI: Encontrada mensagem '{message}'")
-                    return "NÃO"
+                    return 0.0
             
             # ============================================================================
             # NOVA VERIFICAÇÃO: Verificar tabela de TVIs com saldo devedor
@@ -2124,7 +2700,7 @@ class SEFAZBot:
                 
                 if tvi_rows and len(tvi_rows) > 0:
                     logger.info(f"TVI: Encontradas {len(tvi_rows)} linha(s) na tabela")
-                    tem_divida = False
+                    valor_tvi = 0.0  # Armazenar o valor do TVI com débito
                     
                     for idx, row in enumerate(tvi_rows, 1):
                         try:
@@ -2152,7 +2728,7 @@ class SEFAZBot:
                                     saldo_valor = float(saldo_limpo)
                                     if saldo_valor > 0:
                                         logger.info(f"   ⚠️ TVI com saldo devedor: R$ {saldo_text}")
-                                        tem_divida = True
+                                        valor_tvi = saldo_valor  # Armazenar o valor
                                         break  # Já encontrou TVI com dívida
                                     else:
                                         logger.info(f"   ✅ TVI sem saldo devedor (SALDO ZERO)")
@@ -2160,19 +2736,22 @@ class SEFAZBot:
                                     logger.warning(f"   ⚠️ Não foi possível converter saldo: {saldo_text}")
                                     # Se não conseguir converter, verificar pela situação
                                     if "SALDO ZERO" not in situacao_text and "QUITADO" not in situacao_text:
-                                        tem_divida = True
+                                        valor_tvi = -1.0  # Marcar como tem dívida mas valor desconhecido
                                         break
                                         
                         except Exception as row_error:
                             logger.warning(f"   Erro ao processar linha {idx}: {row_error}")
                             continue
                     
-                    if tem_divida:
-                        logger.info("TVI: ❌ Encontradas TVIs com saldo devedor > 0")
+                    if valor_tvi > 0:
+                        logger.info(f"TVI: ❌ Encontradas TVIs com saldo devedor de R$ {valor_tvi:.2f}")
+                        return valor_tvi  # Retornar o valor numérico
+                    elif valor_tvi < 0:
+                        logger.info("TVI: ❌ Encontradas TVIs com saldo devedor (valor não identificado)")
                         return "SIM"
                     else:
                         logger.info("TVI: ✅ Todas as TVIs têm saldo zero")
-                        return "NÃO"
+                        return 0.0  # Retornar zero como float
                         
             except Exception as table_error:
                 logger.warning(f"TVI: Erro ao verificar tabela de saldos: {table_error}")
@@ -2229,7 +2808,7 @@ class SEFAZBot:
             
             # Se chegou até aqui, provavelmente não há TVIs
             logger.info("TVI: Nenhum dado encontrado na página")
-            return "NÃO"
+            return 0.0
                 
         except Exception as e:
             logger.error(f"Erro ao extrair dados de TVI: {e}")
@@ -2683,7 +3262,7 @@ class SEFAZBot:
                         return None
                     
                     # Após login, verificar se o menu 'Sistemas' está visível
-                    menu_opened = await self.check_and_open_sistemas_menu(page)
+                    menu_opened = await self.check_and_open_sistemas_menu(page, inscricao_estadual)
 
                     if not menu_opened:
                         logger.warning("⚠️ Menu não foi aberto na primeira tentativa")
@@ -2715,12 +3294,12 @@ class SEFAZBot:
                         if mensagens_processadas:
                             logger.info("✅ Mensagens processadas, tentando abrir menu novamente")
                             await page.wait_for_timeout(self.random_delay(1000, 2000))
-                            menu_opened = await self.check_and_open_sistemas_menu(page)
+                            menu_opened = await self.check_and_open_sistemas_menu(page, inscricao_estadual)
                         else:
                             # Se não processou mensagem, tentar abrir menu novamente (pode ter sido F5)
                             logger.info("🔄 Tentando abrir menu novamente após falha inicial...")
                             await page.wait_for_timeout(self.random_delay(2000, 3000))
-                            menu_opened = await self.check_and_open_sistemas_menu(page)
+                            menu_opened = await self.check_and_open_sistemas_menu(page, inscricao_estadual)
 
                     if menu_opened:
                         # Com o menu aberto, navegar até Conta Corrente

@@ -1,0 +1,991 @@
+<html><head><script type="text/javascript">
+   function atualizarCaixaEntrada() {
+	   
+      submitForm('/sefaznet/caixaEntradaDomicilio.do',
+    	      	  'mostrarPaginaInicial', null);
+   }
+
+   function filtrarCaixaEntrada() {
+	   
+	      submitForm('/sefaznet/caixaEntradaDomicilio.do',
+	    	      	  'filtrarCaixaEntrada', null);
+	   }
+   
+   function proximaPagina() {
+	      submitForm('/sefaznet/caixaEntradaDomicilio.do',
+	    	      	  'carregarProximaPagina', null);
+   }
+
+   function paginaAnterior() {
+	      submitForm('/sefaznet/caixaEntradaDomicilio.do',
+	    	      	  'carregarPaginaAnterior', null);
+   }
+
+   function enviarNovaMensagem() {
+      submitForm('/sefaznet/enviarMensagemDomicilio.do',
+	      	  'preEnviarNovaMensagem', null);
+  }
+
+  function visualizarMensagensEnviadas() {
+	  submitForm('/sefaznet/visualizarMensagensEnviadas.do',
+	      	  'preFilter', null);
+     
+  }
+
+  function apagarMensagensSelecionadas() {
+	    var flag = false;
+	    var marcados = "";
+	    var i;
+        var form = document.caixaEntradaDomicilioForm;
+
+	    for (i = 0; i < form.elements.length; i++) {
+		     campo = form.elements[i];
+		     tipo = "" + campo.type;
+		     if ( tipo == "checkbox" ){
+	             if(campo.checked){
+	            	 marcados = marcados + campo.name + ",";
+	                 flag = true;
+	             }
+	         }
+	     }
+	     if(flag) {
+		    if (window.confirm("Deseja realmente apagar as mensagens selecionadas?")) {
+		    	form.action = '/sefaznet/caixaEntradaDomicilio.do?method=apagarSelecionadas&mensagens='
+						+ marcados;
+		    	$("#loading").show();
+				form.submit();
+			}
+		    else return false;
+		} else {
+			alert("Selecione pelo menos uma Mensagem!");
+			return false;
+		}
+		return flag;
+	}
+  
+	function abrirMensagem(url) {
+		var form = document.caixaEntradaDomicilioForm;
+		form.action = url;
+		$("#loading").show();
+		form.submit();
+	}
+	
+	  function submitForm(urlAction, method, msg) {
+	      var submitConfirmed = true;
+	      if(msg != null) {
+	        submitConfirmed = window.confirm(msg);
+	     }
+	     if(submitConfirmed) {
+	    		 f = document.caixaEntradaDomicilioForm;
+	       f.action = urlAction + "?method="+method;
+	       f.method.value = method;
+	       $("#loading").show();
+	       f.submit();
+	     }
+	  }	
+</script>
+
+
+<script language="JavaScript1.2">
+	
+   function newSearch() {
+      submitForm('
+/sefaznet/listFilterILogin.do
+	','preFilter', null);
+  }
+  function insertItem() {
+      submitForm('
+/sefaznet/insertILogin.do
+	',
+                  'preInsert', null);
+
+  }
+  function removeItens() {
+      f = document.ILoginForm;
+      if(naoEhBrancoCheck(f.remove)) {
+            submitForm('
+/sefaznet/removeILogin.do
+	',
+                        'remove',
+                        'Deseja remover os itens selecionados?');
+      } else {
+         alert('Nenhum item para exclusão foi selecionado!');
+      }
+   }
+
+  function mainPage() {
+      submitForm('
+/sefaznet/main.do
+	',
+                  'mainPage', null);
+
+  }
+
+
+
+function ShowPopup(URL){
+  var popup = window.open(URL,'popupWindow','location=no,toolbar=no,directories=no,menubar=no,status=yes,scrollbars=no,resizable=yes,width=630,height=360');
+  popup.focus();
+}
+
+
+</script>
+
+
+	
+	
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="SEFAZ.NET Sistema de Transmissão de Informações Fiscais pela Internet">
+    <meta name="author" content="COTEC SEFAZ MA">
+    <link rel="icon" href="/sefaznet/images/favicon.ico">
+    
+    <title>Sefaz.net | :::: SEFAZ.net ::::</title>
+    
+	<script>window['adrum-start-time'] = new Date().getTime();</script>
+	<script src="/sefaznet/adrum.js"></script>
+	
+    <!-- Bootstrap core CSS -->
+    <link href="/sefaznet/styles-bs/bootstrap.min.css" rel="stylesheet">
+    <link href="/sefaznet/styles-bs/docs.min.css" rel="stylesheet">
+    
+    <!-- Menu CSS -->
+    
+    <link href="/sefaznet/styles-bs/tree.css" rel="stylesheet">
+    
+    
+    <!-- Custom styles for this template -->
+    <link href="/sefaznet/styles-bs/sefaznet.css" rel="stylesheet">
+    
+    <!-- Just for debugging purposes. Don't actually copy these 2 lines! -->
+    
+    
+    <!--<script src="/sefaznet/js/mobileredirect.js"></script>-->
+    
+    <!--[if lt IE 9]><script src="../../assets/js/ie8-responsive-file-warning.js"></script><![endif]-->
+    <script src="/sefaznet/js-bs/ie/ie-emulation-modes-warning.js"></script>
+
+    <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+    <script src="/sefaznet/js-bs/ie/ie10-viewport-bug-workaround.js"></script>
+    
+    
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="/sefaznet/js-bs/ie/html5shiv.min.js"></script>
+      <script src="/sefaznet/js-bs/ie/respond.min.js"></script>
+    <![endif]-->    
+    
+    <!-- <link href="http://portal.sefaz.ma.gov.br/portalsefaz/intrafaz/css/menu.css" id="switch_style" rel="stylesheet" /> -->
+    
+    <link href="/sefaznet/styles-bs/redmond/1.10.3.jquery-ui.css" rel="stylesheet">
+
+<style>
+.ui-autocomplete-category {
+	font-weight: bold;
+	padding: .2em .4em;
+	margin: .8em 0 .2em;
+	line-height: 1.5;
+}
+
+.ui-menu .ui-menu-item {
+	margin: 0;
+	padding: 0;
+	width: 100%;
+}
+</style>
+	
+<script async="" src=" https://static.hotjar.com/c/hotjar-6517814.js?sv=6"></script><style id="holderjs-style" type="text/css"></style><script async="" src="https://script.hotjar.com/modules.f7b829d5d96e959c0829.js" charset="utf-8"></script></head>
+
+<body>
+	<div id="loading"></div>
+    <div class="container">
+	
+	<a href="/sefaznet/login.do?method=mostrarPaginaInicial">
+	<img id="logo" height="90px" width="220px" src="/sefaznet/images/logo_sefaz.png"></a>
+
+	
+		<div class="bs-login">
+		    <ul class="nav nav-pills">
+		      <li class="active"><a href="/sefaznet/login.do?method=mostrarPaginaInicial"><i class="glyphicon glyphicon-home"></i> Página Inicial</a></li>
+		      <li><a href="http://www.sefaz.ma.gov.br" target="_blank"><i class="glyphicon glyphicon-globe"></i> Portal Sefaz</a></li>
+		      <li class="title"><h3>Sefaz.NET</h3></li>
+			  <li class="dropdown">
+	
+		        <a id="drop4" role="button" data-toggle="dropdown" href="#"> ANDREZA FALCAO MELO CHAGAS <span class="glyphicon glyphicon-chevron-down"></span></a>
+		        <ul id="menu1" class="dropdown-menu login" role="menu" aria-labelledby="drop4">
+		          <li role="presentation"><a role="menuitem" tabindex="-1" href="/sefaznet/jsp/iPerfilUsuario/IConsultaPerfilUsuario.jsp"><i class="glyphicon glyphicon-user"></i> Ver Perfil</a></li>
+		          <li role="presentation"><a role="menuitem" tabindex="-1" href="/sefaznet/insertIAlteracaoSenha.do?method=preInsert"><i class="glyphicon glyphicon-asterisk"></i> Alterar Senha</a></li>
+		          
+		        </ul>
+		      </li>
+			  <li>
+				<a href="/sefaznet/logoff.do?method=efetuarLogoff" style="padding: 0; width:35px;" title="Sair do sistema">
+					<img src="/sefaznet/images/exit.png" class="img-thumbnail img-reponsive" style="width: 35px;">
+				</a>
+			  </li>
+		    </ul> <!-- /pills -->
+	
+			<div id="dadosLogin">
+			  <div id="data">Boa tarde, Domingo, 16 de Novembro de 2025</div>	  
+			  <div id="sessao"><strong>ID do Usuário:</strong> <span class="badge azul">61257127373</span> | <strong>Sua sessão expira em:</strong> <span id="tempo"><span class="badge verde sessao">09min58</span></span></div>	    		
+			</div>
+		</div>
+	
+
+	  
+      <!-- Static navbar -->
+      <div class="navbar navbar-default" role="navigation">
+        <div class="container-fluid">
+          <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target=".navbar-collapse">
+              <span class="sr-only">Toggle navigation</span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/sefaznet/login.do?method=mostrarPaginaInicial">Sefaz.Net</a>
+          </div>
+          
+          <div class="navbar-collapse collapse">
+
+	          
+	            <ul class="nav navbar-nav">
+					
+	            	
+	                <li class="dropdown">
+						<a href="#" class="dropdown-toggle" data-hover="dropdown"><i class="glyphicon glyphicon-flag"></i> Ajuda<span class="caret"></span></a>
+						<ul class="dropdown-menu" role="menu">
+							<li class="dropdown-header">Tutoriais e Manuais do Sistema</li>
+							<li class="dropdown-submenu">
+								<a tabindex="-1" href="#"><i class="glyphicon glyphicon-film"></i> Vídeos</a>
+								<ul class="dropdown-menu">
+									<li><a href="http://videos.sefaz.ma.gov.br/sefaznet/01-login-audio.wmv" target="_blank"><i class="glyphicon glyphicon-film"></i> Login </a></li>
+									<li><a href="http://videos.sefaz.ma.gov.br/sefaznet/01-principal.wmv" target="_blank"><i class="glyphicon glyphicon-film"></i> Inicial </a></li>
+									<li><a href="http://videos.sefaz.ma.gov.br/sefaznet/03-perfil.wmv" target="_blank"><i class="glyphicon glyphicon-film"></i> Perfil </a></li>
+									<li><a href="http://videos.sefaz.ma.gov.br/sefaznet/04-alterar_senha.wmv" target="_blank"><i class="glyphicon glyphicon-film"></i> Alterar Senha </a></li>
+									<li><a href="http://videos.sefaz.ma.gov.br/sefaznet/05-sair.wmv" target="_blank"><i class="glyphicon glyphicon-film"></i> Sair </a></li>
+									<li><a href="http://videos.sefaz.ma.gov.br/sefaznet/06-busca.wmv" target="_blank"><i class="glyphicon glyphicon-film"></i> Busca </a></li>
+									<li><a href="http://videos.sefaz.ma.gov.br/sefaznet/07-caixa_entrada.wmv" target="_blank"><i class="glyphicon glyphicon-film"></i> Caixa de Entrada </a></li>
+									<li><a href="http://videos.sefaz.ma.gov.br/sefaznet/08-barra_menu.wmv" target="_blank"><i class="glyphicon glyphicon-film"></i> Menu </a></li>
+									<li><a href="http://videos.sefaz.ma.gov.br/sefaznet/09-sistemas.wmv" target="_blank"><i class="glyphicon glyphicon-film"></i> Sistemas </a></li>
+									<li><a href="http://videos.sefaz.ma.gov.br/sefaznet/10-sistemas_menu.wmv" target="_blank"><i class="glyphicon glyphicon-film"></i> Menu Sistema </a></li>
+									<li><a href="http://videos.sefaz.ma.gov.br/sefaznet/11-IPVA.wmv" target="_blank"><i class="glyphicon glyphicon-film"></i> IPVA </a></li>
+									<li><a href="http://videos.sefaz.ma.gov.br/sefaznet/11-IPVA.wmv" target="_blank"><i class="glyphicon glyphicon-film"></i> REGISTRO PASSAGEM </a></li>
+									<li><a href="http://videos.sefaz.ma.gov.br/sefaznet/12-RH.wmv" target="_blank"><i class="glyphicon glyphicon-film"></i> RH </a></li>
+									<li><a href="http://videos.sefaz.ma.gov.br/sefaznet/13-PGE.wmv" target="_blank"><i class="glyphicon glyphicon-film"></i> PGE </a></li>
+									<li><a href="http://videos.sefaz.ma.gov.br/sefaznet/14-orgaos_externos.wmv" target="_blank"><i class="glyphicon glyphicon-film"></i> Orgão Externos </a></li>
+									<li><a href="http://videos.sefaz.ma.gov.br/sefaznet/15-DTE.wmv" target="_blank"><i class="glyphicon glyphicon-film"></i> DTE </a></li>
+									<li><a href="http://videos.sefaz.ma.gov.br/sefaznet/01-login-audio.wmv" target="_blank"><i class="glyphicon glyphicon-film"></i> Áreas de Negócio </a></li>		                	
+								</ul>
+							</li>
+								
+							<li class="dropdown-submenu">
+								<a tabindex="-1" href="#"><i class="glyphicon glyphicon-book"></i> Documentos</a>
+								<ul class="dropdown-menu">
+									<li><a href="http://downloads.sefaz.ma.gov.br/documentacao/Manual_do_Usuario_SefazNET.pdf"><i class="glyphicon glyphicon-book"></i> Manual do Sistema</a></li>
+									<li><a href="http://downloads.sefaz.ma.gov.br/documentacao/Manual_parcelamento.pdf"><i class="glyphicon glyphicon-book"></i> Manual do Parcelamento Eletronico</a></li>
+									<!--<li><a href="#"><i class="glyphicon glyphicon-book"></i> Certificado Digital</a></li>-->
+								</ul>
+							</li>
+													
+						</ul>
+					</li>          
+	            </ul>
+	            
+	            
+	            
+		          
+		          
+
+          </div><!--/.nav-collapse -->
+        </div><!--/.container-fluid -->
+      </div>
+		
+
+    <div class="panel panel-default">
+    	
+		
+	<div class="panel-heading container-fluid navbar-default" style="padding: 0px 30px;" align="right">
+	    	
+	  	</div>
+	  		
+		<form name="caixaEntradaDomicilioForm" method="post" action="/sefaznet/caixaEntradaDomicilio.do">
+			  
+		
+			<div class="panel-body">
+				
+				<div class="well">
+					<div class="table-responsive">
+						
+						<h3 style="width: max-content; margin-bottom: -31px">
+							<i class="glyphicon glyphicon-envelope"></i> Caixa de Entrada do Domicílio Eletrônico
+							
+						</h3>
+						<h6 style="font-size:14px;width:auto;margin-left:712px; font-weight: bold; padding: inherit">
+ 						
+ 						
+ 							Registros: 
+ 							 <input type="text" name="numeroRegistros" size="1" value="50" onkeypress="return isNumberKey(event);" onchange="javascript:atualizarCaixaEntrada();" onfocus="window.status=''" style="font-size:13px; width:50px; height:15px;">
+ 						 	de <span style="color: red; font-weight: bold; font-size: 12px;">1</span> mensagens não lidas.
+ 						
+ 						
+ 						</h6>	
+						
+<table class="table table-striped" style="height: 35px;margin-bottom: 05px;">
+					
+					<thead>
+					<tr>
+						<td><span style="color: red; FONT-WEIGHT: bold; font-size: 12px;">
+								ATENÇÃO: VOCÊ POSSUI 1 MENSAGEM(NS)
+								AGUARDANDO CIÊNCIA. VOCÊ SÓ PODERÁ ACESSAR O MENU DE SERVIÇOS DO
+								SEFAZ.net APÓS CIENTIFICAR ESSA(S) MENSAGEM(NS).
+						</span></td>
+					</tr>
+					</thead>
+					
+					
+					<tbody><tr>
+						<td>
+						<button class="btn btn-success" onclick="javascript:atualizarCaixaEntrada();"><span class="glyphicon glyphicon-refresh"></span> Atualizar</button>
+						
+						<button class="btn btn-info" onclick="javascript:enviarNovaMensagem();"><span class="glyphicon glyphicon-edit"></span> Nova Mensagem</button>
+						
+ 
+ <button class="btn btn-danger" onclick="javascript:return apagarMensagensSelecionadas();"><span class="glyphicon glyphicon-trash"></span> Apagar Selecionadas</button> 
+  
+ <button class="btn btn-primary" onclick="javascript:visualizarMensagensEnviadas();"><span class="glyphicon glyphicon-ok"></span> Enviadas</button>
+ 						</td>
+						<td align="right" class="texto">
+						     Ordenar por: <select name="ordenarMensagens" size="1" onchange="javascript:filtrarCaixaEntrada();" onfocus="window.status=''" style="font-size:11px; width:110px;"><option value=""></option>
+<option value="3">Assunto da mensagem</option>
+<option value="1">Data de envio</option>
+<option value="2" selected="selected">Data de envio (decrescente)</option>
+<option value="6">Empresa</option>
+<option value="4">Situação da mensagem</option>
+<option value="5">Tipo de mensagem</option></select>  
+						     Listar: <select name="visualizarMensagens" size="1" onchange="javascript:atualizarCaixaEntrada();" onfocus="window.status=''" style="font-size:11px;"><option value="1">Todas</option>
+<option value="2">Lidas</option>
+<option value="3" selected="selected">Não Lidas</option>
+<option value="4">Aguardando Ciência</option>
+<option value="5">Cientificadas</option>
+<option value="6">Excluídas</option></select> 
+							Visualizar: <select name="quantidadeRegistrosPagina" size="1" onchange="javascript:atualizarCaixaEntrada();" onfocus="window.status=''" style="font-size:11px;"><option value="10">10</option>
+<option value="25" selected="selected">25</option>
+<option value="50">50</option>
+<option value="75">75</option>
+<option value="100">100</option></select>
+						</td>
+					</tr>
+				</tbody></table>
+				
+      
+	  <table style=" width: 1075px;">
+
+	   
+	   	<tbody><tr>
+	   			<td class="titulo" style="font-size:10px;"><b> Filtrar por: </b></td>
+			<td style="font-size:10px;">Assunto:
+ 			
+				<select name="idAssuntoMsg" size="1" onfocus="window.status=''" style="font-size:10px; width:150px; height:15px;"><option value="" selected="selected"></option>
+<option value="18">AUTO DE INFRAÇÃO ELETRÔNICO</option>
+<option value="1">Atualização Cadastral</option>
+<option value="40">Autorização de Transferência de Crédito</option>
+<option value="7">Aviso de Débito</option>
+<option value="21">Aviso de manifestações não realizadas</option>
+<option value="24">Canal Verde</option>
+<option value="39">Certificado Homologação de Crédito</option>
+<option value="23">Comunicado suspensão cadastral EFD</option>
+<option value="14">Comunicação</option>
+<option value="9">Comunicação-Regimes Especiais</option>
+<option value="28">Diligência ao Contribuinte</option>
+<option value="29">Diligência ao Contribuinte</option>
+<option value="27">Diligência ao Contribuinte</option>
+<option value="41">Emissão de NFe</option>
+<option value="33">Encerramento de Processo</option>
+<option value="0">Fiscalização Massiva</option>
+<option value="26">GFIS</option>
+<option value="38">Homologação de Crédito</option>
+<option value="16">Malha Simples Nacional</option>
+<option value="19">Manifestação do Destinatário</option>
+<option value="20">Notas Fiscais para a manifestação do destinatário</option>
+<option value="11">Notificação</option>
+<option value="4">Notificação de Lançamento</option>
+<option value="34">Novo Processo Homologação de Crédito</option>
+<option value="8">Ordem de Vistoria</option>
+<option value="31">Parecer</option>
+<option value="30">Parecer</option>
+<option value="32">Parecer</option>
+<option value="37">Parecer  Homologação de Crédito</option>
+<option value="36">Processo de Homologação de Crédito</option>
+<option value="25">Protesto em Cartório</option>
+<option value="6">Recibo da DIEF</option>
+<option value="22">Recibo processamento EFD</option>
+<option value="17">Recibo processamento EFD</option>
+<option value="35">Redistribuição de Processo - Homologação de Crédito</option>
+<option value="13">SOLICITAÇÃO DE RETIFICAÇÃO DA ESCRITURAÇÃO FISCAL</option>
+<option value="3">Solicitação de Beneficio de IPVA</option>
+<option value="5">Suspensão Cadastral</option>
+<option value="42">Suspensão Cadastral - Autorregularização EFD</option>
+<option value="12">TERMO DE INICIO DE FISCALIZAÇÃO E ADENDO</option>
+<option value="2">TERMOS DE INICIO DE FISCALIZAÇÃO</option>
+<option value="15">Termo de Início de Fiscalização</option>
+<option value="10">atualização do endereço eletronico</option></select>
+			</td> 
+			
+			<td style="font-size:10px;">Tipo da Mensagem:
+		
+				<select name="idTipoMensagem2" size="1" onfocus="window.status=''" style="font-size:10px; width:150px; height:15px;"><option value="" selected="selected"></option>
+<option value="11"> FISCALIZAÇÃO - ENCERRAMENTO OU INÍCIO</option>
+<option value="14">AUTO DE INFRACAO ELETRONICO</option>
+<option value="3">AUTO DE INFRAÇÃO</option>
+<option value="1">AVISO</option>
+<option value="15">AVISO DE REGULARIZAÇÃO</option>
+<option value="12">AVISO SIMPLES NACIONAL</option>
+<option value="19">AVISO SIMPLES NACIONAL DESCONSIDERAÇÃO</option>
+<option value="90">Aviso Cobrança Lançamento por Declaração</option>
+<option value="6">Aviso de Cobrança</option>
+<option value="4">COMUNICADO</option>
+<option value="7">COMUNICADO DECLARAÇÃO COMPLEMENTAR</option>
+<option value="9">COMUNICAÇÃO - DÉBITOS - REGIME ESPECIAL</option>
+<option value="16">Comunicado de Suspensão de Ofício Confronto Malha 100%</option>
+<option value="17">Comunicado de Suspensão de Ofício PGDASD X DIEF</option>
+<option value="93">Comunicado suspensão cadastral EFD</option>
+<option value="18">Convênio 115 rejeitado</option>
+<option value="20">DECISÃO DE 1 INSTANCIA</option>
+<option value="21">DECISÃO DE JULGAMENTO</option>
+<option value="23">Escrituração Fiscal Digital - EFD</option>
+<option value="63">INFORMAÇÃO NO PGDASD DE IMUNIDADE</option>
+<option value="61">INFORMAÇÃO NO PGDASD DE ISENCAO OU REDUCAO DE BASE DE CALCULO PARA O ICMS</option>
+<option value="66">INFORMAÇÃO NO PGDASD DE VALOR DE LANÇAMENTO DE OFÍCIO INDEVIDO</option>
+<option value="60">INFORMAÇÃO NO PGDASD DE VALOR FIXO</option>
+<option value="25">INTIMAÇÃO</option>
+<option value="24">INTIMAÇÃO</option>
+<option value="91">INTIMAÇÃO ELETRÔNICA</option>
+<option value="13">INTIMAÇÃO FISCAL</option>
+<option value="92">INTIMAÇÃO UNCP</option>
+<option value="62">MALHA DA SUBSTITUIÇÃO TRIBUTÁRIA DO SIMPLES NACIONAL</option>
+<option value="2">NOTIFICAÇÃO DE LANÇAMENTO</option>
+<option value="8">NOTIFICAÇÃO DE LANÇAMENTO POR ATRASO DE EFD</option>
+<option value="96">NOTIFICAÇÃO FISCAL - UPCAF</option>
+<option value="97">NOTIFICAÇÃO PARA ENVIO DO BLOCO H NAS EFDS DE FEV DE CADA EXERCÍCIO</option>
+<option value="95">NOTIFICAÇÃO POR OMISSÃO DE RECEITAS_ DIMP X PGDAS-D</option>
+<option value="86">PAFe - Ressarcimento (SCANC, Hidratado, Transporte Público)  - Emitir NFe para visto - ICMS - COMUNICAÇÃO - Emissão de NFe</option>
+<option value="87">PAFe - Restituição ITCD - Diligência ao Contribuinte -ITCD- INTIMAÇÃO - Diligência ao Contribuinte</option>
+<option value="88">PAFe - Restituição ITCD - Parecer -ITCD- INTIMAÇÃO - Parecer</option>
+<option value="89">PAFe Solicitação Tributária - COMUNICADO</option>
+<option value="69">PAFe-Consulta Fiscal - Diligência ao Contribuinte - ICMS - INTIMAÇÃO - Diligência ao Contribuinte</option>
+<option value="70">PAFe-Consulta Fiscal - Parecer - ICMS - INTIMAÇÃO - Parecer</option>
+<option value="74">PAFe-Homologação de Crédito - Análise de processo -ICMS- COMUNICAÇÃO - Processo de Homologação de Crédito</option>
+<option value="78">PAFe-Homologação de Crédito - Análise do secretário com Emissão de certificado -ICMS- COMUNICAÇÃO - Certificado Homologação de Crédito</option>
+<option value="72">PAFe-Homologação de Crédito - Distribuição de processo -ICMS- COMUNICAÇÃO - Novo Processo Homologação de Crédito</option>
+<option value="71">PAFe-Homologação de Crédito - Encerramento do processo - ICMS - COMUNICAÇÃO - Encerramento Processo</option>
+<option value="76">PAFe-Homologação de Crédito - Líder analisa -&gt; gestor analisa - ICMS - COMUNICAÇÃO - Homologação de Crédito</option>
+<option value="73">PAFe-Homologação de Crédito - Redistribuição de processo -ICMS- COMUNICAÇÃO - Redistribuição de Processo - Homologação de Crédito</option>
+<option value="75">PAFe-Homologação de Crédito - Registra Parecer -ICMS- COMUNICAÇÃO - Parecer Homologação de Crédito</option>
+<option value="77">PAFe-Homologação de Crédito - gestor analisa -&gt; secretário -ICMS- COMUNICAÇÃO - Homologação de Crédito</option>
+<option value="84">PAFe-Ressarcimento (SCANC, Hidratado, Transporte Público)  - CONTESTAÇÃO -ICMS- INTIMAÇÃO - Diligência ao Contribuinte</option>
+<option value="85">PAFe-Ressarcimento (SCANC, Hidratado, Transporte Público)  - Parecer - Indeferimento total pelo auditor - ICMS - COMUNICAÇÃO - Encerramento Processo</option>
+<option value="67">PAFe-Restituição ICMS - Diligência ao Contribuinte - ICMS - INTIMAÇÃO - Diligência ao Contribuinte</option>
+<option value="68">PAFe-Restituição ICMS - Parecer - ICMS - INTIMAÇÃO - Parecer</option>
+<option value="82">PAFe-Restituição IPVA - Diligência ao Contribuinte -IPVA- INTIMAÇÃO - Diligência ao Contribuinte</option>
+<option value="83">PAFe-Restituição IPVA - Parecer -IPVA- INTIMAÇÃO - Parecer</option>
+<option value="81">PAFe-Transferência de Crédito - Encerramento processo -ICMS- COMUNICAÇÃO - Encerramento Processo</option>
+<option value="79">PAFe-Transferência de Crédito - Resposta Contribuinte -ICMS- COMUNICAÇÃO - Autorização de Transferência de Crédito</option>
+<option value="80">PAFe-Transferência de Crédito - Validação Líder -ICMS- COMUNICAÇÃO - Autorização de Transferência de Crédito</option>
+<option value="64">PGDASD NÃO PAGO OU PARCELADO</option>
+<option value="10">QUEDA NO RECOLHIMENTO DO ICMS</option>
+<option value="94">SOLICITAÇÃO DE RETIFICAÇÃO DE ARQUIVOS EFD</option>
+<option value="5">Teste da aplicacao de Cadastro de Tipos de Mensagens disponibilizada no sefaznet para o usuario inte</option></select>
+			</td>
+		
+					<td style="font-size:10px;"> Data de Envio:
+			
+			<input type="text" name="dataEnvioInicial" maxlength="10" size="12" value="" onkeydown="FormataData(this,event); window.status=''" onchange="ValidaData(this);" onfocus="SetarEvento(this,10,'DT', true); window.status='';" style="font-size:10px; width:60px; height:15px;" class="senha hasDatepicker" id="dp1763317206228">  a 
+            <input type="text" name="dataEnvioFinal" maxlength="10" size="12" value="" onkeydown="FormataData(this,event);" onfocus="SetarEvento(this,10,'DT', true); window.status='';" style="font-size:10px; width:60px; height:15px;" class="senha hasDatepicker" id="dp1763317206229"> &nbsp;&nbsp;&nbsp;
+                      	
+           </td>
+			 <td style="font-size:10px;">Inscrição:
+			
+				
+			 <input type="text" name="inscricao" maxlength="10" value="" onkeydown="FormataValor(this,event,11);" style="font-size:10px; width:70px; height:15px; align:rigth;" class="senha">	
+			    
+			 
+		     </td><td style="font-size:10px;"> Núm.Doc.: 
+			   <input type="text" name="numDoc" maxlength="15" value="" onkeydown="FormataValor(this,event,20);" style="font-size:10px; width:80px; height:15px;" class="senha">
+			   
+			</td>
+			
+	
+						
+			<td>       </td>
+			<td><button class="btn btn-success" onclick="javascript:filtrarCaixaEntrada();" style="font-size:10px;width: 50px;height: 20px;padding-left: 4px;padding-right: 5px;padding-bottom: 6px;text-align: center;padding-top: 3px;"><span class="glyphicon glyphicon-search"></span> Filtrar</button></td>	
+           </tr>	 
+     </tbody></table>	
+     
+<table class="table table-striped" style="height: 35px;margin-bottom: -15px; margin-top:10px; font-size: 15px">
+<tbody><tr>
+						<td class="textoPequeno" align="right">
+						<img src="/sefaznet/images/im_ok2.gif" border="0" height="15"> Cientificadas (2)&nbsp;&nbsp;&nbsp;
+							<img src="/sefaznet/images/esperando_ciencia.png" border="0" height="15"> Aguardando ciência (1)&nbsp;&nbsp;&nbsp;
+							<img src="/sefaznet/images/ic_msg_nova.png" border="0" height="15"> Não Lidas (1) &nbsp;&nbsp;&nbsp;
+							<img src="/sefaznet/images/ic_msg_lida.png" border="0" height="15"> Mensagens Lidas (2)&nbsp;&nbsp;&nbsp; 
+							<img src="/sefaznet/images/lixeira.gif" border="0" height="15"> Excluídas (0) &nbsp;&nbsp;&nbsp;
+							</td>
+					</tr>
+</tbody></table>	
+            	
+					
+   <table class="table table-striped">
+   
+   </table>
+				<table class="table table-striped">
+					
+					<tbody><tr>
+						<th></th>
+						<th></th>
+						<th class="celula_horizontal" align="center">Abrir</th>
+						<th class="celula_horizontal" align="center">Emitente</th>
+						<th class="celula_horizontal" align="center">Assunto</th>
+						<th class="celula_horizontal" align="center">Classificação</th>
+						<th class="celula_horizontal" align="center">Data de Envio</th>
+						<th class="celula_horizontal" align="center">Data de Leitura</th>
+						<th class="celula_horizontal" align="center">Exige ciência?</th>
+						<th class="celula_horizontal" align="center">Situação</th>
+						<th class="celula_horizontal" align="center">Vencimento</th>
+					</tr>
+
+					
+					<tr>
+						<td class="texto" align="center">
+							
+						</td>
+						<td class="texto" align="center">
+							
+						</td>
+						<td class="texto" align="center">
+							
+							<a href="javascript:abrirMensagem('/sefaznet/abrirMensagemDomicilio.do?method=abrirMensagem&amp;idMensagemDestinatario=42981598');">
+								<img src="/sefaznet/images/ic_msg_nova.png" title="Clique para abrir" border="0" height="21">
+						</a> 
+						</td>
+						<td class="texto" align="left">SEFAZ-MA</td>
+						<td class="texto" align="left">Recibo da DIEF</td>
+						<td class="texto" align="left">-</td>
+						<td class="texto" align="left">14/11/2025 11:08:34</td>
+						<td class="texto" align="left"></td>
+						<td class="texto" align="left"> 
+					         <p>Sim</p>
+					      </td>
+						<td class="texto" align="center">
+							
+							<img src="/sefaznet/images/esperando_ciencia.png" title="Aguardando ciência do usuario" border="0" height="16"> 
+						</td>
+						<td class="texto" align="left">29/11/2025</td>
+					</tr>
+					
+				
+				</tbody></table>
+
+				
+				<table>
+					<tbody><tr>
+						<td width="50%" align="right">
+							
+						</td>
+						<td width="50%" align="left">
+							
+						</td>
+					</tr>
+					<tr>
+
+						<td colspan="2" class="texto" align="center">Página 1
+							de 1 - total
+							de null mensagens.
+						</td>
+					</tr>
+				</tbody></table>
+				
+
+				<br>
+				<table class="table table-striped">
+					<tbody><tr>
+						<td class="texto" align="right"><span style="color: red; font: bold;">Legenda: </span></td>
+					</tr>
+					<tr>
+						<td class="textoPequeno" align="right">
+						<img src="/sefaznet/images/im_ok_preto.png" border="0" height="15"> Ciência automática&nbsp;&nbsp;&nbsp; <img src="/sefaznet/images/ic_circulo_vermelho.png" border="0" height="15"> Muito próxima de vencer&nbsp;&nbsp;
+							<img src="/sefaznet/images/ic_circulo_amarelo.png" border="0" height="15"> Próxima de vencer&nbsp;&nbsp; <img src="/sefaznet/images/ic_circulo_verde.png" border="0" height="15"> A vencer </td>
+					</tr>
+				</tbody></table>
+
+</div>
+</div>
+			</div>
+			
+			
+			
+				<input type="hidden" name="id" value="0">
+			</form>
+		
+			
+		<script>inicializaForm(document.caixaEntradaDomicilioForm);</script> 
+		
+
+	
+	
+    </div>
+
+
+    </div> <!-- /container -->
+
+
+	<div class="footer">
+		<div class="container">			
+			<div class="row">
+				<div class="sefaz">
+					
+					<div class="span8">
+						<p><strong>Secretaria de Estado da Fazenda do Maranhão</strong> - Av. Carlos Cunha s/n Calhau CEP 65074-905</p>
+						<p><strong>Agência Central - Tel:</strong>(98) 3217-4548 |
+						<strong>Email: </strong>agcensaoluis@sefaz.ma.gov.br |
+						<strong>Orientação Tributária - Tel:</strong>(98) 3219-9068; 3227-5692 |
+						<strong>Substituição Tributária - Tel:</strong>(98) 3217-4521 |
+						<strong>Ouvidoria - Email </strong>asdin@sefaz.ma.gov.br |
+						<strong>Horário de atendimento: </strong>13:00h às 19:00h</p>
+					</div>
+					
+					<div class="footerby">
+						Desenvolvido pelo Corpo Técnico - COTEC/SEFAZ-MA © 1997-2025
+						Aplicativo iniciado ou reinicializado em: 15:04, 13/11/2025 <br>
+						Versão do aplicativo: 2.5.582 <br>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	
+	
+	
+	
+	
+    <form name="areaNegocioForm" method="post" action="/sefaznet/listAreaNegocio.do">
+        <input type="hidden" name="method" value="recuperaAreasNegocio">
+    </form>
+    
+    <form name="menuForm" method="post" action="/sefaznet/listMenu.do" class="teste">
+		<input type="hidden" name="method" value="listarMenusAreaNegocio">
+		<input type="hidden" name="idMenu" value="">
+		<input type="hidden" name="descricao" value="">
+		<input type="hidden" name="nomeApp" value="">
+		<input type="hidden" name="url" value="">		
+	</form>
+                      
+ 	<!-- Modal -->
+	<div class="modal fade" id="modalTempoSessao" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+	  <div class="modal-dialog" role="document">
+	    <div class="modal-content">
+	      <div class="modal-header">
+	        <h4 class="modal-title" id="myModalLabel">Tempo de Sessão</h4>
+	      </div>
+	      <div class="modal-body">
+	        	Sua sessão está prestes a expirar. <br>
+	        	Para continuar usando o SEFAZ-NET, clique no botão abaixo.
+	      </div>
+	      <div class="modal-footer">
+	        <a class="btn btn-primary" onclick="atualizarTempoSessaoNoServidor()">Atualizar Sessão</a>
+	      </div>
+	    </div>
+	  </div>
+	</div>
+                      
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="/sefaznet/js-bs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="/sefaznet/js-bs/jquery/1.11.1/jquery-ui.js"></script>
+    <script src="/sefaznet/js-bs/bootstrap.min.js"></script>
+    <script src="/sefaznet/js-bs/docs.min.js"></script>
+    <script src="/sefaznet/js-bs/bootstrap-hover-dropdown.js"></script>
+    <script src="/sefaznet/js-bs/jstree.min.js"></script>
+	<script src="/sefaznet/js-bs/jquery.mask.min.js"></script>
+    <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+    <script src="/sefaznet/js-bs/ie/ie10-viewport-bug-workaround.js"></script>
+    
+    <script language="javascript" src="/sefaznet/js/validations.js"></script>
+    
+	<!-- Global site tag (gtag.js) - Google Analytics -->
+	<!-- Google tag (gtag.js) -->
+	<script async="" src=" https://www.googletagmanager.com/gtag/js?id=G-K9EQP1B9N3 "></script>
+	<script>
+	  window.dataLayer = window.dataLayer || [];
+	  function gtag(){dataLayer.push(arguments);}
+	  gtag('js', new Date());
+
+	  gtag('config', 'G-K9EQP1B9N3');
+	</script>
+	
+	<!-- Hotjar Tracking Code for sefaznet -->
+	<script>
+	 (function(h,o,t,j,a,r){
+			h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments)};
+			h._hjSettings={hjid:6517814,hjsv:6};
+			a=o.getElementsByTagName('head')[0];
+			r=o.createElement('script');r.async=1;
+			r.src=t+h._hjSettings.hjid+j+h._hjSettings.hjsv;
+			a.appendChild(r);
+	  })(window,document,' https://static.hotjar.com/c/hotjar-','.js?sv=');
+	</script>
+	
+    <script language="javascript">
+    
+    	function getData(){
+    		dayName = new Array ("Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado");
+    		monName = new Array ("Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro");
+    		now = new Date;
+
+    		$("#data").html("Boa tarde, " + dayName[now.getDay() ] + ", " + now.getDate () + " de " + monName [now.getMonth() ] + " de " + now.getFullYear()); 
+    	}
+    	getData();
+    	
+		function atualizaTempoSessao(segundos){
+			if(segundos>0){
+				
+				$("#tempo").html(formatTime(segundos));
+				segundos = segundos-1;
+				
+				if(segundos < 60 && !$('#modalTempoSessao').hasClass('in')){
+					console.log(segundos);
+					$('#modalTempoSessao').modal({
+						backdrop: 'static',
+						keyboard: false
+					});
+				} else {
+					setTimeout('atualizaTempoSessao(\''+segundos+'\')', 1000);
+				}
+			}
+		}
+
+		function atualizarTempoSessaoNoServidor(){
+			$.ajax({
+				url: "/sefaznet/time-left"
+			}).always(function( data ) {
+				console.log("oxi camarada");
+				console.log(data);
+				$('#modalTempoSessao').modal('hide');
+				atualizaTempoSessao(600);
+			});
+		}
+		
+		function formatTime(secs){
+			   var times = new Array(60, 1);
+			   var time = '';
+			   var tmp;
+			   var alerta = false;
+			   
+			   for(var i = 0; i < times.length; i++){
+			      tmp = Math.floor(secs / times[i]);
+				  if(tmp < 10){
+			         tmp = '0' + tmp;
+			      }
+			      time += tmp;
+			      if(i < 1){
+			    	 if(tmp < 1)
+			    		 alerta=true;
+			         time += 'min';
+			      }
+			      secs = secs % times[i];
+			   }
+			   
+			   if(alerta)
+				   if(tmp == 1)
+					   return '<span class="badge red">Sessão Expirada!</span>';
+				   else
+			   	   	   return '<span class="badge red">' + time + "</span>";
+			   else
+				   return '<span class="badge verde sessao">' + time + "</span>";
+			}		
+	
+		atualizaTempoSessao(600);
+		
+	    $('.btn-close').click(function (e) {
+	        e.preventDefault();
+	        $(this).parent().parent().parent().fadeOut();
+	    });
+	    
+	    $('.btn-minimize').click(function (e) {
+	        e.preventDefault();
+	        var $target = $(this).parent().parent().next('.box-content');
+	        if ($target.is(':visible')) $('i', $(this)).removeClass('glyphicon-chevron-up').addClass('glyphicon-chevron-down');
+	        else                       $('i', $(this)).removeClass('glyphicon-chevron-down').addClass('glyphicon-chevron-up');
+	        $target.slideToggle();
+	    });
+	    
+	    function listMenu(form,obj,id){
+	    	$("#loading").show();
+	    	form.idMenu.value = id;
+	    	form.descricao.value = $(obj).text();     
+	    	form.submit();
+	    }
+	    
+	    
+	    $(function () {
+	        // 6 create an instance when the DOM is ready
+	        $('.jstree').jstree();
+	        
+	        // 7 bind to events triggered on the tree
+	        $('.jstree').on("changed.jstree", function (e, data) {
+	          console.log(data.selected);
+	        });
+	        // 8 interact with the tree - either way is OK
+	        $('button').on('click', function () {
+	          $('.jstree').jstree(true).select_node('child_node_1');
+	          $('.jstree').jstree('select_node', 'child_node_1');
+	          $.jstree.reference('.jstree').select_node('child_node_1');
+	        });
+	      });
+	    /*document.areaNegocioForm.submit();*/
+	    
+    	$(".botao_final").addClass("btn btn-primary");
+    	$(".botao_sistema").addClass("btn btn-primary");
+		$(".botao_voltar").addClass("btn btn-default");
+		$(".money").mask("#.##0,00", {reverse: true});
+		$("font").removeAttr("face").removeAttr("size");
+		$('.mesAno').mask('00/0000');
+		$('.anoMes').mask('0000/00');
+	</script>
+	
+	<script type="text/javascript">
+	$.widget("custom.autocomplete", $.ui.autocomplete, {
+		_renderMenu : function(ul, items) {
+			var that = this, currentCategory = "";
+			$.each(items, function(index, item) {
+				if (item.category != currentCategory) {
+					ul.append('<li class="ui-autocomplete-category">'
+							+ item.category + "</li>");
+					currentCategory = item.category;
+				}
+				that._renderItemData(ul, item);
+			});
+		}
+	});
+	
+	   $(function() { 
+		   var data = [{ label: "Credenciamento NFCE", value:"/sefaznet/listICredenciamentoSped.do?method=preFilter&tipo=4&MenuIndex=1.1.1", name: "NFCE", category: "NFCE (Auto Atendimento) " },{ label: "Manutenção de CSC", value:"/sefaznet/listFilterIManutencaoToken.do?method=preFilter&MenuIndex=1.1.2", name: "NFCE", category: "NFCE (Auto Atendimento) " },{ label: "Consulta de NFCe Emitente x Consumidor", value:"/sefaznet/listFilterIConsultaNFeEmitConsumidor.do?method=preFilter&MenuIndex=1.1.3", name: "NFCE", category: "NFCE (Auto Atendimento) " },{ label: "Consulta Dados do Contador", value:"/sefaznet/listFilterIConsultaDadosContador.do?method=preFilter&MenuIndex=1.2.1", name: "Cadastro", category: "Cadastro (Auto Atendimento) " },{ label: "Adesão ao ROT Substituição Tributária", value:"/sefaznet/insertIAdesaoROT.do?method=preFilter&MenuIndex=1.2.2", name: "Cadastro", category: "Cadastro (Auto Atendimento) " },{ label: "Manter Representantes Legais", value:"/sefaznet/listFilterIManutencaoRepresentanteLegal.do?method=preFilter&MenuIndex=1.2.3", name: "Cadastro", category: "Cadastro (Auto Atendimento) " },{ label: "Solicitar Baixa/Suspensão", value:"/sefaznet/updateISolicitacaoBaixaSuspensao.do?method=preUpdateFilter&MenuIndex=1.2.4", name: "Cadastro", category: "Cadastro (Auto Atendimento) " },{ label: "Alterar Dados Cadastrais", value:"/sefaznet/updateIAlteracaoDadosCadastrais.do?method=preUpdateFilter&MenuIndex=1.2.5", name: "Cadastro", category: "Cadastro (Auto Atendimento) " },{ label: "EMISSÃO DE RECIBO GIA-ST", value:"/sefaznet/listEmissaoDebitoGiast.do?method=preFilter&MenuIndex=1.3.1", name: "GIA-ST", category: "GIA-ST (Auto Atendimento) " },{ label: "Solicitação de Parcelamento Eletrônico", value:"/sefaznet/listFilterISolicitacaoParcelamentoEletronico.do?method=preFilter&MenuIndex=1.4.1.1", name: "Parcelamento", category: "Parcelamento Eletronico (Parcelamento) " },{ label: "Recibo Convênio", value:"/sefaznet/listReciboConvenio115.do?method=preFilter&MenuIndex=1.5.1", name: "Convênio 115", category: "Convênio 115 (Auto Atendimento) " },{ label: " Mais Empregos", value:"/sefaznet/arquivoGfipFilter.do?method=preFilter&MenuIndex=1.6.1.1", name: "Beneficio Fiscal", category: "Programas de Governo (Beneficio Fiscal) " },{ label: "Consulta Situação de Beneficio Fiscal/Regime Especial", value:"/sefaznet/listFilterIConsultaBeneficioFiscal.do?method=preFilter&MenuIndex=1.6.2", name: "Beneficio Fiscal", category: "Beneficio Fiscal (Auto Atendimento) " },{ label: "Solicitação de Benefício Fiscal/Regime Especial", value:"/sefaznet/insertSolicitacaoBeneficioFiscal.do?method=preInsert&MenuIndex=1.6.3", name: "Beneficio Fiscal", category: "Beneficio Fiscal (Auto Atendimento) " },{ label: "Cancelamento de Declaracao ST", value:"/sefaznet/insertDeclaracaoEstoqueST.do?method=preCancel&MenuIndex=1.7.1", name: "Declaração de Estoque", category: "Declaração de Estoque (Auto Atendimento) " },{ label: "Acompanhamento reativação", value:"/sefaznet/listFilterIAcompanhamentoReativacao.do?method=preFilter&MenuIndex=1.8.1", name: "Reativação Confronto", category: "Reativação Confronto (Auto Atendimento) " },{ label: "Solicitação de Reativação Malha 100%", value:"/sefaznet/listFilterISolicitacaoReativacaoMalha100.do?method=preFilter&MenuIndex=1.8.2", name: "Reativação Confronto", category: "Reativação Confronto (Auto Atendimento) " },{ label: "Solicitação Reativação Malha 90%", value:"/sefaznet/listFilterISolicitacaoReativacao.do?method=preFilter&MenuIndex=1.8.3", name: "Reativação Confronto", category: "Reativação Confronto (Auto Atendimento) " },{ label: "Comprovação de Venda", value:"/sefaznet/listFilterIComprovacaoVenda.do?method=preFilter&MenuIndex=1.9.1", name: "SCDE", category: "SCDE (Auto Atendimento) " },{ label: "Confirmação de Compra", value:"/sefaznet/listFilterIConfirmacaoCompra.do?method=preFilter&MenuIndex=1.9.2", name: "SCDE", category: "SCDE (Auto Atendimento) " },{ label: "Consulta Cobrança Transportador", value:"/sefaznet/listFilterIConsultaCobrancaTransp.do?method=preFilter&MenuIndex=1.10.1", name: "Canal Verde", category: "Canal Verde (Auto Atendimento) " },{ label: "Emissão de Nota Fiscal", value:"/sefaznet/listITranscricaoNotaFiscal.do?method=preInsert&MenuIndex=1.11.1", name: "Nota Avulsa", category: "Nota Avulsa (Auto Atendimento) " },{ label: "Impressão de Nota Fiscal", value:"/sefaznet/listIConsultaNotaFiscal.do?method=preFilter&MenuIndex=1.11.2", name: "Nota Avulsa", category: "Nota Avulsa (Auto Atendimento) " },{ label: "Consulta de Notas Fiscais", value:"/sefaznet/listIConsultaNotaFiscalAvulsa.do?method=preFilter&MenuIndex=1.11.3", name: "Nota Avulsa", category: "Nota Avulsa (Auto Atendimento) " },{ label: "Cancelamento de NFA", value:"/sefaznet/listICancelamentoNotaFiscalAvulsa.do?method=preFilter&MenuIndex=1.11.4", name: "Nota Avulsa", category: "Nota Avulsa (Auto Atendimento) " },{ label: "Incluir Requerimento", value:"/sefaznet/insertRequerimento.do?method=preInsert&MenuIndex=1.12.1", name: "ECF", category: "ECF (Auto Atendimento) " },{ label: "Relatório de Equipamentos por Marca", value:"/sefaznet/listFilterRelatorioEquipamentosMarca.do?method=preFilter&MenuIndex=1.12.2.1", name: "ECF", category: "Menu Relatórios (ECF) " },{ label: "Rel. Empresas Adequadas ao PAF", value:"/sefaznet/listFornecedor.do?method=preFilter&MenuIndex=1.12.2.2", name: "ECF", category: "Menu Relatórios (ECF) " },{ label: "Relatório de Usuários ECF", value:"/sefaznet/listFilterRelatorioUsuarioEcf.do?method=preFilter&MenuIndex=1.12.2.3", name: "ECF", category: "Menu Relatórios (ECF) " },{ label: "Pedido de Uso/Cessação", value:"/sefaznet/insertPedidoUsoCessacao.do?method=preInsert&MenuIndex=1.12.3", name: "ECF", category: "ECF (Auto Atendimento) " },{ label: "Vínculo de Equipamentos", value:"/sefaznet/listCadastroEquipsEcfMa.do?method=preFilter&MenuIndex=1.12.4", name: "ECF", category: "ECF (Auto Atendimento) " },{ label: "Consulta Declaração do usuário PAF", value:"/sefaznet/listDocumentoLicencaVendaPafEcf.do?method=preFilter&MenuIndex=1.12.5", name: "ECF", category: "ECF (Auto Atendimento) " },{ label: "Consulta Atestado de Intervenção", value:"/sefaznet/listAtestadoIntervencao.do?method=preFilter&MenuIndex=1.12.6", name: "ECF", category: "ECF (Auto Atendimento) " },{ label: "Incluir Atestado de Intervenção", value:"/sefaznet/insertAtestadoIntervencao.do?method=preInsert&MenuIndex=1.12.7", name: "ECF", category: "ECF (Auto Atendimento) " },{ label: "Declaração do usuário PAF", value:"/sefaznet/insertDocumentoLicencaVendaPafEcf.do?method=preInsert&MenuIndex=1.12.8", name: "ECF", category: "ECF (Auto Atendimento) " },{ label: "Consulta Pedido de Uso", value:"/sefaznet/listPedidoUsoCessacao.do?method=preFilter&MenuIndex=1.12.9", name: "ECF", category: "ECF (Auto Atendimento) " },{ label: "Incluir Ocorrência", value:"/sefaznet/insertOcorrencia.do?method=preInsert&MenuIndex=1.12.10", name: "ECF", category: "ECF (Auto Atendimento) " },{ label: "Consulta Ocorrência", value:"/sefaznet/listOcorrencia.do?method=preFilter&MenuIndex=1.12.11", name: "ECF", category: "ECF (Auto Atendimento) " },{ label: "Autorregularização Malhas EFD", value:"/sefaznet/listFilterIAutoRegularizacaoEfd.do?method=preFilter&MenuIndex=1.13.1", name: "EFD", category: "EFD (Auto Atendimento) " },{ label: "Consulta Arquivos", value:"/sefaznet/listFilterIConsultaEfd.do?method=preFilter&MenuIndex=1.13.2", name: "EFD", category: "EFD (Auto Atendimento) " },{ label: "Consulta Batimentos", value:"/sefaznet/listFilterIConsultaBatimentoEfd.do?method=preFilter&MenuIndex=1.13.3", name: "EFD", category: "EFD (Auto Atendimento) " },{ label: "Consulta de Obrigados do EFD", value:"/sefaznet/listFilterIConsultaObrigadosEfd.do?method=preFilter&MenuIndex=1.13.4", name: "EFD", category: "EFD (Auto Atendimento) " },{ label: "Autorização de EFD Substitutiva", value:"/sefaznet/listFilterIAutorizacaoSubstitutoEfd.do?method=preFilterAutorizacaoEfd&MenuIndex=1.13.5", name: "EFD", category: "EFD (Auto Atendimento) " },{ label: "Manutenção de Credenciamento do Efd", value:"/sefaznet/listFilterIManutencaoObrigadosEfd.do?method=preFilter&MenuIndex=1.13.6", name: "EFD", category: "EFD (Auto Atendimento) " },{ label: "Consultar AIDF", value:"/sefaznet/listIConsultaAIDF.do?method=preFilter&MenuIndex=1.14.1", name: "AIDF", category: "AIDF (Auto Atendimento) " },{ label: "Consulta Ordem de Serviço", value:"/sefaznet/listIConsultaOrdemServico.do?method=preFilter&MenuIndex=1.14.2", name: "AIDF", category: "AIDF (Auto Atendimento) " },{ label: "Conclusão AIDF", value:"/sefaznet/updateIBaixaAIDF.do?method=preFilter&MenuIndex=1.14.3", name: "AIDF", category: "AIDF (Auto Atendimento) " },{ label: "Ordem de Serviço/AIDF", value:"/sefaznet/listOrdemServicoGraficaAIDF.do?method=preInsert&MenuIndex=1.14.4", name: "AIDF", category: "AIDF (Auto Atendimento) " },{ label: "Ordem de Serviço Expedido", value:"/sefaznet/listOrdemServicoExpedidoAIDF.do?method=preFilter&MenuIndex=1.14.5", name: "AIDF", category: "AIDF (Auto Atendimento) " },{ label: "Consulta de Chave de Seguranca por Protocolo", value:"/sefaznet/listFilterIConsultaChaveSegurancaDief.do?method=preFilter&MenuIndex=1.15.1", name: "DIEF", category: "DIEF (Auto Atendimento) " },{ label: "Impressão do Recibo DIEF", value:"/sefaznet/listIImpressaoReciboDief.do?method=preFilter&MenuIndex=1.15.2", name: "DIEF", category: "DIEF (Auto Atendimento) " },{ label: "Consulta de Arquivo DIEF", value:"/sefaznet/listFilterConsultaArquivosDief.do?method=preFilter&MenuIndex=1.15.3", name: "DIEF", category: "DIEF (Auto Atendimento) " },{ label: "Consulta Processamento da DIEF", value:"/sefaznet/listFilterIConsultaProcessamentoDief.do?method=preFilter&MenuIndex=1.15.4", name: "DIEF", category: "DIEF (Auto Atendimento) " },{ label: "Omissão de vendas", value:"/sefaznet/listFilterIConsultaNotaEntradaOmissa.do?method=preFilter&MenuIndex=1.15.5", name: "DIEF", category: "DIEF (Auto Atendimento) " },{ label: "Consulta de Notas Registradas no SITRAN", value:"/sefaznet/listFilterIConsultaNotasSitran.do?method=preFilter&MenuIndex=1.15.6", name: "DIEF", category: "DIEF (Auto Atendimento) " },{ label: "Omissão de compras", value:"/sefaznet/listFilterIConsultaNotaSaidaOmissa.do?method=preFilter&MenuIndex=1.15.7", name: "DIEF", category: "DIEF (Auto Atendimento) " },{ label: "Consulta de Protocolo DIEF/DIS", value:"/sefaznet/listFilterIConsultaProtocoloDief.do?method=preFilter&MenuIndex=1.15.8", name: "DIEF", category: "DIEF (Auto Atendimento) " },{ label: "Consulta de Notas Divergentes por Protocolo", value:"/sefaznet/listFilterIConsultaNfDiefProtocolo.do?method=preFilter&MenuIndex=1.15.9", name: "DIEF", category: "DIEF (Auto Atendimento) " },{ label: "Credenciamento EFD", value:"/sefaznet/listICredenciamentoSped.do?method=preFilter&tipo=1&MenuIndex=1.16.1", name: "Credenciamento", category: "Credenciamento (Auto Atendimento) " },{ label: "Atestado Construtoras", value:"/sefaznet/listIAtestadoConstrutora.do?method=preFilter&MenuIndex=1.16.2", name: "Credenciamento", category: "Credenciamento (Auto Atendimento) " },{ label: "Credenciamento NFE", value:"/sefaznet/listICredenciamentoSped.do?method=preFilter&tipo=2&MenuIndex=1.16.3", name: "Credenciamento", category: "Credenciamento (Auto Atendimento) " },{ label: "Credenciamento de Construtora", value:"/sefaznet/listICredenciamentoConstrutora.do?method=preFilter&MenuIndex=1.16.4", name: "Credenciamento", category: "Credenciamento (Auto Atendimento) " },{ label: "Credenciamento BPE", value:"/sefaznet/listICredenciamentoSped.do?method=preFilter&tipo=6&MenuIndex=1.16.5", name: "Credenciamento", category: "Credenciamento (Auto Atendimento) " },{ label: "Credenciamento CTE", value:"/sefaznet/listICredenciamentoSped.do?method=preFilter&tipo=3&MenuIndex=1.16.6", name: "Credenciamento", category: "Credenciamento (Auto Atendimento) " },{ label: "Credenciamento CTE-OS", value:"/sefaznet/listICredenciamentoSped.do?method=preFilter&tipo=5&MenuIndex=1.16.7", name: "Credenciamento", category: "Credenciamento (Auto Atendimento) " },{ label: "Credenciamento NFCE", value:"/sefaznet/listICredenciamentoSped.do?method=preFilter&tipo=4&MenuIndex=1.16.8", name: "Credenciamento", category: "Credenciamento (Auto Atendimento) " },{ label: "Credenciamento Regime Normal-Produtor Rural", value:"/sefaznet/listICredenciamentoProdRural.do?method=preFilter&MenuIndex=1.16.9", name: "Credenciamento", category: "Credenciamento (Auto Atendimento) " },{ label: "Envio de Arquivos", value:"/sefaznet/insertEventoEnvioArquivos.do?methord=preInsert&MenuIndex=1.17.1", name: "Gestão de Arquivos", category: "Gestão de Arquivos (Auto Atendimento) " },{ label: "Exclusão de DI em contigência", value:"/sefaznet/listExcluirDI.do?method=preFilter&MenuIndex=1.18.1", name: "Comércio Exterior", category: "Comércio Exterior (Auto Atendimento) " },{ label: "Gerar Dare/Guia", value:"/sefaznet/listGerarDareGuia.do?method=preFilter&MenuIndex=1.18.2", name: "Comércio Exterior", category: "Comércio Exterior (Auto Atendimento) " },{ label: "Liberar mercadoria estrangeira", value:"/sefaznet/listLiberarMercadoria.do?method=preFilter&MenuIndex=1.18.3", name: "Comércio Exterior", category: "Comércio Exterior (Auto Atendimento) " },{ label: "Inclusão de DI em contingência", value:"/sefaznet/listLiberarContingencia.do?method=preFilter&MenuIndex=1.18.4", name: "Comércio Exterior", category: "Comércio Exterior (Auto Atendimento) " },{ label: "Incluir Usuário Autorizado", value:"/sefaznet/insertIInclusaoPerfilUsuarioAutorizado.do?method=preFilter&MenuIndex=1.19.1", name: "Controle de Acesso", category: "Controle de Acesso (Auto Atendimento) " },{ label: "Solicitar Cadastro ao Auto-Atendimento", value:"/sefaznet/insertISolicitacaoCadastroAutoAtendimento.do?method=preInsert&MenuIndex=1.19.2", name: "Controle de Acesso", category: "Controle de Acesso (Auto Atendimento) " },{ label: "Alterar Senha", value:"/sefaznet/insertIAlteracaoSenha.do?method=preInsert&MenuIndex=1.19.3", name: "Controle de Acesso", category: "Controle de Acesso (Auto Atendimento) " },{ label: "Controle de Funcionarios de Concessionaria", value:"/sefaznet/listFilterIFuncionarioConcessionaria.do?method=preFilter&MenuIndex=1.19.4", name: "Controle de Acesso", category: "Controle de Acesso (Auto Atendimento) " },{ label: "Manter Usuário Autorizado", value:"/sefaznet/listFilterIManutencaoUsuariosAutorizados.do?method=preFilter&MenuIndex=1.19.5", name: "Controle de Acesso", category: "Controle de Acesso (Auto Atendimento) " },{ label: "Consultar Permissões de Acesso", value:"/sefaznet/listFilterIConsultaPermissoesAcesso.do?method=preFilter&MenuIndex=1.19.6", name: "Controle de Acesso", category: "Controle de Acesso (Auto Atendimento) " },{ label: "Consulta e Download de CTe", value:"/sefaznet/listFilterIConsultaCte.do?method=preFilter&MenuIndex=1.20.1", name: "CT-e", category: "CT-e (Auto Atendimento) " },{ label: "Consultar Pagamentos Realizados", value:"/sefaznet/listFilterIConsultaPagamentosRealizados.do?method=preFilter&MenuIndex=1.21.1", name: "Conta Fiscal", category: "Conta Fiscal (Auto Atendimento) " },{ label: "Consultar Conta-Corrente Fiscal", value:"/sefaznet/listFilterIConsultaContaCorrenteFiscal.do?method=preFilter&MenuIndex=1.21.2", name: "Conta Fiscal", category: "Conta Fiscal (Auto Atendimento) " },{ label: "Consultar Pagamento pelo Código de Autenticação", value:"/sefaznet/listFilterIConsultaPagamentoCodigoAutenticacao.do?method=preFilter&MenuIndex=1.21.3", name: "Conta Fiscal", category: "Conta Fiscal (Auto Atendimento) " },{ label: "Consulta de NFE Emit X Dest", value:"/sefaznet/listFilterIConsultaNotasEmitDest.do?method=preFilter&MenuIndex=1.22.1", name: "NFE", category: "NFE (Auto Atendimento) " },{ label: "Sincronização de NFE", value:"/sefaznet/listFilterISincronizaNfe.do?method=preFilter&MenuIndex=1.22.2", name: "NFE", category: "NFE (Auto Atendimento) " },{ label: "Cadastro de Funcionarios", value:"/sefaznet/listFilterIFuncionarioConcessionaria.do?method=preFilter&MenuIndex=1.23.1.1", name: "IPVA", category: "Concessionária (IPVA) " },{ label: "Lançamento de NFe", value:"/sefaznet/listFilterILancamentoIpvaConcessionaria.do?method=preFilterConcessionaria&MenuIndex=1.23.1.2", name: "IPVA", category: "Concessionária (IPVA) " },{ label: "Consulta de Solicitação do Produto Rural", value:"/sefaznet/consultaSolicitacaoProdutor.do?method=preFilter&MenuIndex=1.24.1", name: "Produtor Rural", category: "Produtor Rural (Auto Atendimento) " },{ label: "Cadastro de Produtor Rural", value:"/sefaznet/cadastroProdutorRural.do?method=preFilter&MenuIndex=1.24.2", name: "Produtor Rural", category: "Produtor Rural (Auto Atendimento) " },{ label: "Emitir DARE Intimação Fiscal", value:"/sefaznet/listFilterEmiteDAREIntimacao.do?method=preFilter&MenuIndex=1.25.1", name: "Intimação Fiscal / SIAIFI", category: "Intimação Fiscal / SIAIFI (Auto Atendimento) " },{ label: "Acompanhamento de Intimação", value:"/sefaznet/listIConsultaRelatorioIntimacao.do?method=preFilterAcompanhamento&MenuIndex=1.25.2", name: "Intimação Fiscal / SIAIFI", category: "Intimação Fiscal / SIAIFI (Auto Atendimento) " },{ label: "Contestaçao de Intimaçao", value:"/sefaznet/listFilterConsultaIntimacao.do?method=preFilter&MenuIndex=1.25.3", name: "Intimação Fiscal / SIAIFI", category: "Intimação Fiscal / SIAIFI (Auto Atendimento) " },{ label: "Consultar Dados Cadastrais", value:"/sefaznet/listIConsultaDadosCadastrais.do?method=preFilter&MenuIndex=2.1", name: "Órgãos Externos", category: "Órgãos Externos" },{Label: "Home Page", value: "login.do?method=mostrarPaginaInicial", category: "Gerais"}];
+
+			$("input#search").autocomplete({ 
+					delay: 0, 
+					source: data, 
+					
+					focus: function (event, ui) { 
+						$(event.target).val(ui.item.label); 
+						return false; 
+					}, 
+					
+					select: function (event, ui) { 
+						$(event.target).val(ui.item.label); 
+						clickArvore( document.menuForm,ui.item.value,ui.item.name);
+						return false; 
+					} 
+				
+					}); 
+			}); 
+	   
+	   
+
+	
+</script>
+<script type="text/javascript">
+	function contarMaximoTextArea(obj, max ){
+		$(obj).attr('maxlength',max);
+		
+		//$(obj).keyup(function(){
+	      var charsno = $(obj).val().length;
+	      $('#complemento').html(charsno+" de "+ max);
+	    //});
+	}
+	$(".botao").addClass("btn btn-primary");
+
+	function clickArvore (form,link,app){
+		$("#loading").show();				
+		form.method.value = 'atribuirNomeApp';
+		form.nomeApp.value = app;
+		//alert(app);
+		form.url.value = link.replace(' ', '' );
+		form.submit();
+		
+		//window.location = link;// + "&app=" + app;
+	}
+</script> 
+
+  
+
+
+ <script>
+
+ $(function() {
+	 
+	  //dataEnvioInicial 
+	$( "input[name='dataEnvioInicial']" ).datepicker({
+	  showButtonPanel: true, showOtherMonths: true, selectOtherMonths: true, changeMonth: true, changeYear: true,
+			 minDate: "-20Y", maxDate: "+2Y"
+	  });
+	$( "input[name='dataEnvioInicial']" ).datepicker( "option", "showAnim", "drop");
+	$( "input[name='dataEnvioInicial']" ).datepicker( "option", "dateFormat", "dd/mm/yy");
+
+	
+	  //dataEnvioFinal 
+	$( "input[name='dataEnvioFinal']" ).datepicker({
+	  showButtonPanel: true, showOtherMonths: true, selectOtherMonths: true, changeMonth: true, changeYear: true,
+			 minDate: "-20Y", maxDate: "+2Y"
+	  });
+	$( "input[name='dataEnvioFinal']" ).datepicker( "option", "showAnim", "drop");
+	$( "input[name='dataEnvioFinal']" ).datepicker( "option", "dateFormat", "dd/mm/yy");			
+});
+	</script>	
+
+	<script>
+ 		function isNumberKey(evt){
+ 		    var charCode = (evt.which) ? evt.which : evt.keyCode
+ 		    return !(charCode > 31 && (charCode < 48 || charCode > 57));
+ 		}
+ </script>
+<ul class="vakata-context"></ul><div id="jstree-marker" style="display: none;">&nbsp;</div><div id="ui-datepicker-div" class="ui-datepicker ui-widget ui-widget-content ui-helper-clearfix ui-corner-all"><div class="ui-datepicker-header ui-widget-header ui-helper-clearfix ui-corner-all"><a class="ui-datepicker-prev ui-corner-all" data-handler="prev" data-event="click" title="Anterior"><span class="ui-icon ui-icon-circle-triangle-w">Anterior</span></a><a class="ui-datepicker-next ui-corner-all" data-handler="next" data-event="click" title="Próximo"><span class="ui-icon ui-icon-circle-triangle-e">Próximo</span></a><div class="ui-datepicker-title"><select class="ui-datepicker-month" data-handler="selectMonth" data-event="change"><option value="0">Jan</option><option value="1">Fev</option><option value="2">Mar</option><option value="3">Abr</option><option value="4">Mai</option><option value="5">Jun</option><option value="6">Jul</option><option value="7">Ago</option><option value="8">Set</option><option value="9">Out</option><option value="10" selected="selected">Nov</option><option value="11">Dez</option></select><select class="ui-datepicker-year" data-handler="selectYear" data-event="change"><option value="2015">2015</option><option value="2016">2016</option><option value="2017">2017</option><option value="2018">2018</option><option value="2019">2019</option><option value="2020">2020</option><option value="2021">2021</option><option value="2022">2022</option><option value="2023">2023</option><option value="2024">2024</option><option value="2025" selected="selected">2025</option><option value="2026">2026</option><option value="2027">2027</option></select></div></div><table class="ui-datepicker-calendar"><thead><tr><th scope="col" class="ui-datepicker-week-end"><span title="Domingo">D</span></th><th scope="col"><span title="Segunda">S</span></th><th scope="col"><span title="Terça">T</span></th><th scope="col"><span title="Quarta">Q</span></th><th scope="col"><span title="Quita">Q</span></th><th scope="col"><span title="Sexta">S</span></th><th scope="col" class="ui-datepicker-week-end"><span title="Sábado">S</span></th></tr></thead><tbody><tr><td class=" ui-datepicker-week-end ui-datepicker-other-month " data-handler="selectDay" data-event="click" data-month="9" data-year="2025"><a class="ui-state-default ui-priority-secondary" href="#">26</a></td><td class=" ui-datepicker-other-month " data-handler="selectDay" data-event="click" data-month="9" data-year="2025"><a class="ui-state-default ui-priority-secondary" href="#">27</a></td><td class=" ui-datepicker-other-month " data-handler="selectDay" data-event="click" data-month="9" data-year="2025"><a class="ui-state-default ui-priority-secondary" href="#">28</a></td><td class=" ui-datepicker-other-month " data-handler="selectDay" data-event="click" data-month="9" data-year="2025"><a class="ui-state-default ui-priority-secondary" href="#">29</a></td><td class=" ui-datepicker-other-month " data-handler="selectDay" data-event="click" data-month="9" data-year="2025"><a class="ui-state-default ui-priority-secondary" href="#">30</a></td><td class=" ui-datepicker-other-month " data-handler="selectDay" data-event="click" data-month="9" data-year="2025"><a class="ui-state-default ui-priority-secondary" href="#">31</a></td><td class=" ui-datepicker-week-end " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">1</a></td></tr><tr><td class=" ui-datepicker-week-end " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">2</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">3</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">4</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">5</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">6</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">7</a></td><td class=" ui-datepicker-week-end " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">8</a></td></tr><tr><td class=" ui-datepicker-week-end " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">9</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">10</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">11</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">12</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">13</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">14</a></td><td class=" ui-datepicker-week-end " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">15</a></td></tr><tr><td class=" ui-datepicker-week-end ui-datepicker-days-cell-over  ui-datepicker-current-day ui-datepicker-today" data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default ui-state-highlight ui-state-active ui-state-hover" href="#">16</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">17</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">18</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">19</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">20</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">21</a></td><td class=" ui-datepicker-week-end " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">22</a></td></tr><tr><td class=" ui-datepicker-week-end " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">23</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">24</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">25</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">26</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">27</a></td><td class=" " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">28</a></td><td class=" ui-datepicker-week-end " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">29</a></td></tr><tr><td class=" ui-datepicker-week-end " data-handler="selectDay" data-event="click" data-month="10" data-year="2025"><a class="ui-state-default" href="#">30</a></td><td class=" ui-datepicker-other-month " data-handler="selectDay" data-event="click" data-month="11" data-year="2025"><a class="ui-state-default ui-priority-secondary" href="#">1</a></td><td class=" ui-datepicker-other-month " data-handler="selectDay" data-event="click" data-month="11" data-year="2025"><a class="ui-state-default ui-priority-secondary" href="#">2</a></td><td class=" ui-datepicker-other-month " data-handler="selectDay" data-event="click" data-month="11" data-year="2025"><a class="ui-state-default ui-priority-secondary" href="#">3</a></td><td class=" ui-datepicker-other-month " data-handler="selectDay" data-event="click" data-month="11" data-year="2025"><a class="ui-state-default ui-priority-secondary" href="#">4</a></td><td class=" ui-datepicker-other-month " data-handler="selectDay" data-event="click" data-month="11" data-year="2025"><a class="ui-state-default ui-priority-secondary" href="#">5</a></td><td class=" ui-datepicker-week-end ui-datepicker-other-month " data-handler="selectDay" data-event="click" data-month="11" data-year="2025"><a class="ui-state-default ui-priority-secondary" href="#">6</a></td></tr></tbody></table><div class="ui-datepicker-buttonpane ui-widget-content"><button type="button" class="ui-datepicker-current ui-state-default ui-priority-secondary ui-corner-all" data-handler="today" data-event="click">Hoje</button><button type="button" class="ui-datepicker-close ui-state-default ui-priority-primary ui-corner-all" data-handler="hide" data-event="click">Fechar</button></div></div><iframe id="_hjSafeContext_11753316" title="_hjSafeContext" tabindex="-1" aria-hidden="true" src="about:blank" style="display: none !important; width: 1px !important; height: 1px !important; opacity: 0 !important; pointer-events: none !important;"></iframe></body></html>

@@ -2,6 +2,7 @@
 import { appState } from './state.js';
 
 export function switchTab(tabName) {
+    console.log('🔄 Trocando para aba:', tabName);
     appState.currentTab = tabName;
     
     // Atualizar botões das abas
@@ -18,6 +19,7 @@ export function switchTab(tabName) {
     // Atualizar painéis de conteúdo
     document.querySelectorAll('[data-tab-content]').forEach(panel => {
         const isActive = panel.dataset.tabContent === tabName;
+        console.log(`   ${panel.dataset.tabContent}: ${isActive ? 'VISIBLE' : 'HIDDEN'}`);
         panel.classList.toggle('hidden', !isActive);
     });
     

@@ -1,0 +1,1063 @@
+{
+  "meta": {
+    "project": "SEFAZ Bot (Consulta Conta Corrente Fiscal)",
+    "date": "2025-11-12",
+    "prepared_by": "Software Development Manager"
+  },
+  "product_overview": "SEFAZ Bot is an automation solution designed to facilitate fiscal account current queries for companies registered with SEFAZ/MA. It combines a human-like browser automation with a web dashboard, comprehensive REST API, and a robust job processing queue, ensuring effective bulk and individual consultations backed by persistent data storage and email notifications.",
+  "core_goals": [
+    "Automate SEFAZ/MA fiscal account current queries with anti-detection mechanisms to mimic human interactions.",
+    "Provide a full-featured web dashboard with real-time statistics, execution control, and detailed query results.",
+    "Expose a REST API enabling CRUD operations on companies, query executions, queue management, and retrieval of SEFAZ messages and statistics.",
+    "Implement a job queue system supporting batch processing with control over start, stop, and cancellation of jobs.",
+    "Enable background processing of SEFAZ consultations with headless browser support for scalable automation.",
+    "Persist query results, jobs, companies, and messages in a SQLite database ensuring data integrity and easy access.",
+    "Support configuration via environment variables for flexible deployment, including email notifications via SMTP."
+  ],
+  "key_features": [
+    "Companies API: Full CRUD operations on companies including validation and pagination with secure credential handling.",
+    "Consultations API: Listing and deletion of fiscal queries with advanced filtering by status, TVI presence, and debt flags.",
+    "Background Query Execution: Trigger SEFAZ consultations asynchronously with headless mode support and user credential inputs.",
+    "Queue Management API: Job queue system for bulk company consultations with job statistics, start/stop control, prioritization, and cancellation.",
+    "Status and Statistics API: Real-time monitoring of execution status and aggregated fiscal consultation statistics.",
+    "SEFAZ Messages API: Retrieval and filtering of messages from SEFAZ portal related to fiscal issues and notifications.",
+    "Web Interface: Dashboard presenting summary statistics, control panel for query execution, progress logs, and detailed consultation tables with sorting and visual cues.",
+    "Email Notification: Optional SMTP-based email alerts configurable through environment variables.",
+    "CLI Utilities: Tools for importing/exporting companies in JSON and CSV formats and for local interactive consultation runs.",
+    "Robust Configuration Management: Environment-based setup enabling control over headless mode, SMTP, database location, and service ports.",
+    "Data Persistence: SQLite back-end storing companies, consultations, job queue states, and messages with schema validations.",
+    "Security Measures: Best practices for credential storage, log sanitization, and environment isolation."
+  ],
+  "user_flow_summary": [
+    "User creates, updates, or deletes companies via API or web interface with validation and secure password handling.",
+    "User initiates a consultation either directly via API or through the web dashboard, optionally choosing headless mode.",
+    "Automated background query process runs using Playwright emulating human browser interactions; results are stored in the database.",
+    "User monitors consultation progress and status through the web dashboard or status API endpoints.",
+    "User manages a queue of company consultation jobs: adding companies, starting or stopping processing, cancelling or removing jobs.",
+    "Consultation results and SEFAZ messages can be retrieved with filtering and pagination for review or auditing.",
+    "Users export or import company data through CLI utilities to synchronize or backup company information.",
+    "If configured, the system sends email notifications to notify about significant events or consultation results.",
+    "Administrators deploy and configure the system via environment variables, managing performance settings like workers and server ports.",
+    "Users troubleshoot issues through provided logs, API status endpoints, and documented solutions for common problems."
+  ],
+  "validation_criteria": [
+    "All API endpoints respond correctly according to OpenAPI specifications with proper status codes and schema validation.",
+    "Companies API enforces required fields and accepts only valid data formats; password is mandatory on creation.",
+    "Pagination and filtering work consistently across listing endpoints for companies, consultations, messages, and queue jobs.",
+    "Background consultation requests trigger the automation process without blocking the API and update status correctly.",
+    "Queue management controls respond accurately to start, stop, add, cancel, delete commands and properly reflect job states.",
+    "Web dashboard correctly displays statistics and live job progress with accurate counts and summaries.",
+    "Email notifications are sent only when SMTP is properly configured and include relevant information.",
+    "CLI utilities correctly export and import company data maintaining data integrity and synchronization with the API.",
+    "Database persists all relevant entities with accurate timestamps, status updates, and reflects actions performed via API or UI.",
+    "System behaves correctly in headless and non-headless modes and respects environment-based configuration settings.",
+    "Security measures protect sensitive credentials, do not expose passwords in logs or API responses, and environment files are kept out of version control.",
+    "System gracefully handles error conditions such as invalid credentials, queue deadlocks, full job limits, and API misuse with informative messages."
+  ],
+  "code_summary": {
+    "tech_stack": [
+      "Python",
+      "FastAPI",
+      "Uvicorn",
+      "SQLite",
+      "Playwright",
+      "Docker",
+      "Pydantic"
+    ],
+    "features": [
+      {
+        "name": "Empresas API",
+        "description": "CRUD de empresas com validação e paginação",
+        "files": [
+          "api.py:158",
+          "api.py:216",
+          "api.py:277",
+          "api.py:314",
+          "api.py:347",
+          "api.py:414"
+        ],
+        "api_doc": {
+          "openapi": "3.0.0",
+          "info": {
+            "title": "Empresas API",
+            "version": "1.0.0"
+          },
+          "servers": [
+            {
+              "url": "http://localhost:8000"
+            }
+          ],
+          "paths": {
+            "/api/empresas": {
+              "post": {
+                "summary": "Criar empresa",
+                "requestBody": {
+                  "required": true,
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/EmpresaRequest"
+                      }
+                    }
+                  }
+                },
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "$ref": "#/components/schemas/EmpresaResponse"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "get": {
+                "summary": "Listar empresas",
+                "parameters": [
+                  {
+                    "name": "limit",
+                    "in": "query",
+                    "schema": {
+                      "type": "integer",
+                      "default": 50
+                    }
+                  },
+                  {
+                    "name": "offset",
+                    "in": "query",
+                    "schema": {
+                      "type": "integer",
+                      "default": 0
+                    }
+                  },
+                  {
+                    "name": "search",
+                    "in": "query",
+                    "schema": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "name": "ativo",
+                    "in": "query",
+                    "schema": {
+                      "type": "boolean"
+                    }
+                  }
+                ],
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/EmpresaResponse"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "/api/empresas/count": {
+              "get": {
+                "summary": "Contar empresas",
+                "parameters": [
+                  {
+                    "name": "search",
+                    "in": "query",
+                    "schema": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "name": "ativo",
+                    "in": "query",
+                    "schema": {
+                      "type": "boolean"
+                    }
+                  }
+                ],
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "/api/empresas/{id}": {
+              "get": {
+                "summary": "Obter empresa",
+                "parameters": [
+                  {
+                    "name": "id",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                      "type": "integer"
+                    }
+                  }
+                ],
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "$ref": "#/components/schemas/EmpresaResponse"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "put": {
+                "summary": "Atualizar empresa",
+                "parameters": [
+                  {
+                    "name": "id",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                      "type": "integer"
+                    }
+                  }
+                ],
+                "requestBody": {
+                  "required": true,
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/EmpresaRequest"
+                      }
+                    }
+                  }
+                },
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "$ref": "#/components/schemas/EmpresaResponse"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "delete": {
+                "summary": "Excluir empresa",
+                "parameters": [
+                  {
+                    "name": "id",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                      "type": "integer"
+                    }
+                  }
+                ],
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "components": {
+            "schemas": {
+              "EmpresaRequest": {
+                "type": "object",
+                "properties": {
+                  "nome_empresa": {
+                    "type": "string"
+                  },
+                  "cnpj": {
+                    "type": "string"
+                  },
+                  "inscricao_estadual": {
+                    "type": "string"
+                  },
+                  "cpf_socio": {
+                    "type": "string"
+                  },
+                  "senha": {
+                    "type": "string"
+                  },
+                  "observacoes": {
+                    "type": "string"
+                  },
+                  "ativo": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "nome_empresa",
+                  "cnpj",
+                  "inscricao_estadual",
+                  "cpf_socio",
+                  "senha"
+                ]
+              },
+              "EmpresaResponse": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "nome_empresa": {
+                    "type": "string"
+                  },
+                  "cnpj": {
+                    "type": "string"
+                  },
+                  "inscricao_estadual": {
+                    "type": "string"
+                  },
+                  "cpf_socio": {
+                    "type": "string"
+                  },
+                  "data_criacao": {
+                    "type": "string"
+                  },
+                  "data_atualizacao": {
+                    "type": "string"
+                  },
+                  "ativo": {
+                    "type": "boolean"
+                  },
+                  "observacoes": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "Consultas API",
+        "description": "Listagem e exclusão de consultas com filtros",
+        "files": [
+          "api.py:474",
+          "api.py:574",
+          "api.py:602"
+        ],
+        "api_doc": {
+          "openapi": "3.0.0",
+          "info": {
+            "title": "Consultas API",
+            "version": "1.0.0"
+          },
+          "servers": [
+            {
+              "url": "http://localhost:8000"
+            }
+          ],
+          "paths": {
+            "/api/consultas": {
+              "get": {
+                "summary": "Listar consultas (últimas por IE)",
+                "parameters": [
+                  {
+                    "name": "limit",
+                    "in": "query",
+                    "schema": {
+                      "type": "integer",
+                      "default": 50
+                    }
+                  },
+                  {
+                    "name": "offset",
+                    "in": "query",
+                    "schema": {
+                      "type": "integer",
+                      "default": 0
+                    }
+                  },
+                  {
+                    "name": "search",
+                    "in": "query",
+                    "schema": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "name": "status",
+                    "in": "query",
+                    "schema": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "name": "tem_tvi",
+                    "in": "query",
+                    "schema": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "name": "tem_divida",
+                    "in": "query",
+                    "schema": {
+                      "type": "string"
+                    }
+                  }
+                ],
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/ConsultaResponse"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "/api/consultas/{id}": {
+              "delete": {
+                "summary": "Excluir consulta",
+                "parameters": [
+                  {
+                    "name": "id",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                      "type": "integer"
+                    }
+                  }
+                ],
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "/api/consultas/count": {
+              "get": {
+                "summary": "Contar consultas (últimas por IE)",
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "components": {
+            "schemas": {
+              "ConsultaResponse": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "nome_empresa": {
+                    "type": "string"
+                  },
+                  "cnpj": {
+                    "type": "string"
+                  },
+                  "inscricao_estadual": {
+                    "type": "string"
+                  },
+                  "cpf_socio": {
+                    "type": "string"
+                  },
+                  "chave_acesso": {
+                    "type": "string"
+                  },
+                  "status_ie": {
+                    "type": "string"
+                  },
+                  "tem_tvi": {
+                    "type": "string"
+                  },
+                  "valor_debitos": {
+                    "type": "number"
+                  },
+                  "tem_divida_pendente": {
+                    "type": "string"
+                  },
+                  "omisso_declaracao": {
+                    "type": "string"
+                  },
+                  "inscrito_restritivo": {
+                    "type": "string"
+                  },
+                  "data_consulta": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "Fila de Processamento API",
+        "description": "Gerenciamento de fila de jobs (adicionar, listar, stats, iniciar/parar, cancelar)",
+        "files": [
+          "api.py:791",
+          "api.py:855",
+          "api.py:905",
+          "api.py:1067",
+          "api.py:1080",
+          "api.py:1092",
+          "api.py:1123"
+        ],
+        "api_doc": {
+          "openapi": "3.0.0",
+          "info": {
+            "title": "Fila API",
+            "version": "1.0.0"
+          },
+          "servers": [
+            {
+              "url": "http://localhost:8000"
+            }
+          ],
+          "paths": {
+            "/api/fila/adicionar": {
+              "post": {
+                "summary": "Adicionar empresas à fila",
+                "requestBody": {
+                  "required": true,
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/QueueJobRequest"
+                      }
+                    }
+                  }
+                },
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "/api/fila": {
+              "get": {
+                "summary": "Listar fila",
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/QueueJobResponse"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "/api/fila/stats": {
+              "get": {
+                "summary": "Estatísticas",
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "/api/fila/iniciar": {
+              "post": {
+                "summary": "Iniciar processamento",
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "/api/fila/parar": {
+              "post": {
+                "summary": "Parar processamento",
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "/api/fila/{job_id}": {
+              "delete": {
+                "summary": "Deletar job",
+                "parameters": [
+                  {
+                    "name": "job_id",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                      "type": "integer"
+                    }
+                  }
+                ],
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "/api/fila/cancelar/{job_id}": {
+              "post": {
+                "summary": "Cancelar job",
+                "parameters": [
+                  {
+                    "name": "job_id",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                      "type": "integer"
+                    }
+                  }
+                ],
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "components": {
+            "schemas": {
+              "QueueJobRequest": {
+                "type": "object",
+                "properties": {
+                  "empresa_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "prioridade": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "empresa_ids"
+                ]
+              },
+              "QueueJobResponse": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "empresa_id": {
+                    "type": "integer"
+                  },
+                  "nome_empresa": {
+                    "type": "string"
+                  },
+                  "cnpj": {
+                    "type": "string"
+                  },
+                  "inscricao_estadual": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "prioridade": {
+                    "type": "integer"
+                  },
+                  "data_adicao": {
+                    "type": "string"
+                  },
+                  "data_processamento": {
+                    "type": "string"
+                  },
+                  "tentativas": {
+                    "type": "integer"
+                  },
+                  "max_tentativas": {
+                    "type": "integer"
+                  },
+                  "erro": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "Status e Estatísticas API",
+        "description": "Status da execução e estatísticas agregadas",
+        "files": [
+          "api.py:661",
+          "api.py:738"
+        ],
+        "api_doc": {
+          "openapi": "3.0.0",
+          "info": {
+            "title": "Status & Estatísticas",
+            "version": "1.0.0"
+          },
+          "servers": [
+            {
+              "url": "http://localhost:8000"
+            }
+          ],
+          "paths": {
+            "/api/status": {
+              "get": {
+                "summary": "Status da consulta",
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "$ref": "#/components/schemas/StatusResponse"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "/api/estatisticas": {
+              "get": {
+                "summary": "Estatísticas das consultas (últimas por IE)",
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "components": {
+            "schemas": {
+              "StatusResponse": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "data": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "Mensagens SEFAZ API",
+        "description": "Listagem, contagem e obtenção de mensagens SEFAZ",
+        "files": [
+          "api.py:1168",
+          "api.py:1241",
+          "api.py:1278"
+        ],
+        "api_doc": {
+          "openapi": "3.0.0",
+          "info": {
+            "title": "Mensagens SEFAZ",
+            "version": "1.0.0"
+          },
+          "servers": [
+            {
+              "url": "http://localhost:8000"
+            }
+          ],
+          "paths": {
+            "/api/mensagens": {
+              "get": {
+                "summary": "Listar mensagens",
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/MensagemSefazResponse"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "/api/mensagens/count": {
+              "get": {
+                "summary": "Contar mensagens",
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "/api/mensagens/{mensagem_id}": {
+              "get": {
+                "summary": "Obter mensagem",
+                "parameters": [
+                  {
+                    "name": "mensagem_id",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                      "type": "integer"
+                    }
+                  }
+                ],
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "$ref": "#/components/schemas/MensagemSefazResponse"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "components": {
+            "schemas": {
+              "MensagemSefazResponse": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "inscricao_estadual": {
+                    "type": "string"
+                  },
+                  "cpf_socio": {
+                    "type": "string"
+                  },
+                  "enviada_por": {
+                    "type": "string"
+                  },
+                  "data_envio": {
+                    "type": "string"
+                  },
+                  "assunto": {
+                    "type": "string"
+                  },
+                  "classificacao": {
+                    "type": "string"
+                  },
+                  "tributo": {
+                    "type": "string"
+                  },
+                  "tipo_mensagem": {
+                    "type": "string"
+                  },
+                  "numero_documento": {
+                    "type": "string"
+                  },
+                  "vencimento": {
+                    "type": "string"
+                  },
+                  "tipo_ciencia": {
+                    "type": "string"
+                  },
+                  "data_ciencia": {
+                    "type": "string"
+                  },
+                  "conteudo_mensagem": {
+                    "type": "string"
+                  },
+                  "data_leitura": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "Consulta em Background",
+        "description": "Disparo de consulta SEFAZ em background",
+        "files": [
+          "api.py:675",
+          "api.py:703",
+          "bot.py:1"
+        ],
+        "api_doc": {
+          "openapi": "3.0.0",
+          "info": {
+            "title": "Consulta Background",
+            "version": "1.0.0"
+          },
+          "servers": [
+            {
+              "url": "http://localhost:8000"
+            }
+          ],
+          "paths": {
+            "/api/consulta": {
+              "post": {
+                "summary": "Executar consulta",
+                "requestBody": {
+                  "required": true,
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/ConsultaRequest"
+                      }
+                    }
+                  }
+                },
+                "responses": {
+                  "200": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "$ref": "#/components/schemas/StatusResponse"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "components": {
+            "schemas": {
+              "ConsultaRequest": {
+                "type": "object",
+                "properties": {
+                  "usuario": {
+                    "type": "string"
+                  },
+                  "senha": {
+                    "type": "string"
+                  },
+                  "inscricao_estadual": {
+                    "type": "string"
+                  },
+                  "headless": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

@@ -103,7 +103,24 @@ export async function deleteEmpresa(empresaId) {
         throw new Error(error.detail || 'Erro ao excluir empresa');
     }
     
-    return true;
+    return response.ok;
+}
+
+export async function importarEmpresasCSV(empresas) {
+    const response = await fetch(`${API_BASE_URL}/empresas/importar-csv`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ empresas })
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Erro ao importar empresas');
+    }
+    
+    return await response.json();
 }
 
 export async function adicionarEmpresasNaFila(empresaIds, prioridade = 0) {

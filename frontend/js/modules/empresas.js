@@ -65,6 +65,11 @@ function updateEmpresasTable(empresas) {
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div class="flex space-x-2 justify-end">
+                        <button onclick="window.empresasUI.autoLoginEmpresa('${empresa.inscricao_estadual}')" 
+                                class="text-green-600 hover:text-green-900"
+                                title="Auto Login SEFAZ">
+                            <i data-lucide="log-in" class="h-4 w-4"></i>
+                        </button>
                         <button onclick="window.empresasUI.editEmpresa(${empresa.id})" 
                                 class="text-blue-600 hover:text-blue-900">
                             <i data-lucide="edit" class="h-4 w-4"></i>
@@ -205,6 +210,16 @@ export function showAddEmpresaModal() {
     document.getElementById('empresaModalTitle').textContent = 'Nova Empresa';
     document.getElementById('empresaForm').reset();
     document.getElementById('empresaId').value = '';
+    
+    // Resetar tab para Manual
+    switchImportTab('manual');
+    
+    // Resetar estado da importação CSV
+    resetCSVImport();
+    
+    // Garantir que os listeners estão configurados
+    initializeCSVImport();
+    
     document.getElementById('empresaModal').classList.remove('hidden');
 }
 
@@ -226,6 +241,10 @@ export function editEmpresa(empresaId) {
 export function closeEmpresaModal() {
     document.getElementById('empresaModal').classList.add('hidden');
     document.getElementById('empresaForm').reset();
+    
+    // Resetar estado CSV ao fechar modal
+    resetCSVImport();
+    switchImportTab('manual');
 }
 
 export async function saveEmpresa(event) {
@@ -322,4 +341,576 @@ export function changeEmpresasItemsPerPage(itemsPerPage) {
     appState.empresasItemsPerPage = parseInt(itemsPerPage);
     appState.empresasCurrentPage = 1;
     loadEmpresas();
+}
+
+// ================================
+// IMPORTAÇÃO CSV
+// ================================
+
+let csvData = null;
+let csvListenersInitialized = false;
+
+function resetCSVImport() {
+    csvData = null;
+    
+    const csvFileName = document.getElementById('csvFileName');
+    const csvPreview = document.getElementById('csvPreview');
+    const importResult = document.getElementById('importResult');
+    const csvFileInput = document.getElementById('csvFileInput');
+    const importBtn = document.getElementById('importarCsvBtn');
+    
+    if (csvFileName) {
+        csvFileName.classList.add('hidden');
+        csvFileName.textContent = '';
+    }
+    if (csvPreview) csvPreview.classList.add('hidden');
+    if (importResult) {
+        importResult.classList.add('hidden');
+        importResult.innerHTML = '';
+    }
+    if (csvFileInput) csvFileInput.value = '';
+    if (importBtn) importBtn.disabled = true;
+}
+
+export function initializeCSVImport() {
+    // Evitar adicionar listeners múltiplas vezes
+    if (csvListenersInitialized) {
+        return;
+    }
+    
+    const tabManual = document.getElementById('tabManual');
+    const tabImportar = document.getElementById('tabImportar');
+    const csvFileInput = document.getElementById('csvFileInput');
+    
+    if (tabManual) {
+        tabManual.addEventListener('click', () => {
+            switchImportTab('manual');
+        });
+    }
+    
+    if (tabImportar) {
+        tabImportar.addEventListener('click', () => {
+            switchImportTab('importar');
+        });
+    }
+    
+    if (csvFileInput) {
+        csvFileInput.addEventListener('change', handleCSVFileSelect);
+    }
+    
+    csvListenersInitialized = true;
+}
+
+function switchImportTab(tab) {
+    const tabManual = document.getElementById('tabManual');
+    const tabImportar = document.getElementById('tabImportar');
+    const empresaForm = document.getElementById('empresaForm');
+    const importarCsvForm = document.getElementById('importarCsvForm');
+    
+    if (!tabManual || !tabImportar || !empresaForm || !importarCsvForm) {
+        return;
+    }
+    
+    if (tab === 'manual') {
+        tabManual.classList.add('border-blue-500', 'text-blue-600');
+        tabManual.classList.remove('border-transparent', 'text-gray-500');
+        tabImportar.classList.remove('border-blue-500', 'text-blue-600');
+        tabImportar.classList.add('border-transparent', 'text-gray-500');
+        empresaForm.classList.remove('hidden');
+        importarCsvForm.classList.add('hidden');
+    } else {
+        tabImportar.classList.add('border-blue-500', 'text-blue-600');
+        tabImportar.classList.remove('border-transparent', 'text-gray-500');
+        tabManual.classList.remove('border-blue-500', 'text-blue-600');
+        tabManual.classList.add('border-transparent', 'text-gray-500');
+        empresaForm.classList.add('hidden');
+        importarCsvForm.classList.remove('hidden');
+    }
+}
+
+function handleCSVFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const fileName = document.getElementById('csvFileName');
+    if (fileName) {
+        fileName.textContent = `Arquivo selecionado: ${file.name}`;
+        fileName.classList.remove('hidden');
+    }
+    
+    // Função para detectar e limpar caracteres corrompidos
+    const fixEncoding = (text) => {
+        // Se encontrar caracteres corrompidos típicos de Windows-1252 lido como UTF-8
+        if (text.includes('Ã§') || text.includes('Ã£') || text.includes('Ã©') || text.includes('Ã­')) {
+            console.log('Detectado encoding incorreto, tentando corrigir...');
+            // Tentar reconverter de UTF-8 mal interpretado para Windows-1252
+            try {
+                const encoder = new TextEncoder();
+                const decoder = new TextDecoder('windows-1252');
+                const bytes = encoder.encode(text);
+                text = decoder.decode(bytes);
+            } catch (e) {
+                console.warn('Não foi possível corrigir encoding automaticamente');
+            }
+        }
+        return text;
+    };
+    
+    const processFile = (text) => {
+        // Corrigir encoding se necessário
+        text = fixEncoding(text);
+        
+        // PRÉ-PROCESSAMENTO: Converter notação científica antes do parse
+        const scientificNotationRegex = /(\d+[,.]?\d*)[eE]([+-]?\d+)/g;
+        
+        text = text.replace(scientificNotationRegex, (match, mantissa, exponent) => {
+            mantissa = mantissa.replace(',', '.');
+            const number = parseFloat(mantissa) * Math.pow(10, parseInt(exponent));
+            return number.toFixed(0);
+        });
+        
+        console.log('Texto pré-processado (primeiras 500 caracteres):', text.substring(0, 500));
+        
+        parseCSV(text);
+    };
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        processFile(e.target.result);
+    };
+    
+    reader.onerror = () => {
+        console.error('Erro ao ler arquivo');
+        utils.showNotification('Erro ao ler arquivo CSV', 'error');
+    };
+    
+    // Ler como UTF-8 (o navegador tentará detectar automaticamente)
+    reader.readAsText(file);
+}
+
+function parseCSV(text) {
+    const lines = text.split('\n').filter(line => line.trim());
+    if (lines.length < 2) {
+        utils.showNotification('Arquivo CSV vazio ou inválido', 'error');
+        return;
+    }
+    
+    // Detectar o delimitador automaticamente
+    const firstLine = lines[0];
+    // Contar occorrências de cada delimitador
+    const tabCount = (firstLine.match(/\t/g) || []).length;
+    const commaCount = (firstLine.match(/,/g) || []).length;
+    const semicolonCount = (firstLine.match(/;/g) || []).length;
+    
+    // Usar o delimitador que aparece mais vezes
+    let delimiter = ',';
+    let maxCount = commaCount;
+    
+    if (tabCount > maxCount) {
+        delimiter = '\t';
+        maxCount = tabCount;
+    }
+    
+    if (semicolonCount > maxCount) {
+        delimiter = ';';
+        maxCount = semicolonCount;
+    }
+    
+    console.log('Delimitador detectado:', delimiter === '\t' ? 'TAB' : delimiter === ';' ? 'PONTO E VÍRGULA' : 'VÍRGULA');
+    console.log(`Contagem: TABs=${tabCount}, VÍRGULAs=${commaCount}, PONTO E VÍRGULA=${semicolonCount}`);
+    
+    // Parser CSV que lida com valores entre aspas
+    const parseCSVLine = (line) => {
+        const values = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            const nextChar = line[i + 1];
+            
+            if (char === '"') {
+                if (inQuotes && nextChar === '"') {
+                    // Aspas duplas escapadas
+                    current += '"';
+                    i++; // Pular próximo caractere
+                } else {
+                    // Toggle estado de aspas
+                    inQuotes = !inQuotes;
+                }
+            } else if (char === delimiter && !inQuotes) {
+                // Fim do campo
+                values.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        
+        // Adicionar último campo
+        values.push(current.trim());
+        
+        return values;
+    };
+    
+    // Converter notação científica para número normal (fallback adicional)
+    const convertScientificNotation = (value) => {
+        if (!value || value === '') return '';
+        
+        // Remover aspas se houver
+        value = value.replace(/^["']|["']$/g, '').trim();
+        
+        // Se já foi convertido no pré-processamento, retornar direto
+        if (!/[eE][+-]?\d+/.test(value)) {
+            return value;
+        }
+        
+        // Substituir vírgula por ponto para conversão
+        const normalizedValue = value.replace(',', '.');
+        
+        try {
+            const number = parseFloat(normalizedValue);
+            if (!isNaN(number)) {
+                // Converter para string sem notação científica e sem decimais
+                return number.toFixed(0);
+            }
+        } catch (e) {
+            console.error('Erro ao converter notação científica:', value, e);
+        }
+        
+        return value;
+    };
+    
+    const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase().replace(/\s+/g, '_').replace(/^["']|["']$/g, ''));
+    const expectedHeaders = ['nome_empresa', 'cnpj', 'inscricao_estadual', 'cpf_socio', 'senha', 'observacoes'];
+    
+    console.log('Headers encontrados:', headers);
+    console.log('Headers esperados:', expectedHeaders);
+    
+    // Verificar se todos os headers esperados estão presentes
+    const missingHeaders = expectedHeaders.filter(h => !headers.includes(h));
+    if (missingHeaders.length > 0) {
+        utils.showNotification(`Arquivo CSV com colunas faltando: ${missingHeaders.join(', ')}. Headers encontrados: ${headers.join(', ')}`, 'error');
+        return;
+    }
+    
+    csvData = [];
+    for (let i = 1; i < lines.length; i++) {
+        const values = parseCSVLine(lines[i]);
+        
+        // Pular linhas vazias ou com número incorreto de colunas
+        if (values.length === 0 || values.every(v => !v)) {
+            console.warn(`Linha ${i+1} vazia, ignorando`);
+            continue;
+        }
+        
+        if (values.length !== headers.length) {
+            console.warn(`Linha ${i+1} ignorada: número incorreto de colunas (${values.length} vs ${headers.length})`);
+            console.warn(`Valores:`, values);
+            continue;
+        }
+        
+        const row = {};
+        headers.forEach((header, index) => {
+            let value = values[index];
+            
+            // Converter notação científica para campos numéricos
+            if (['cnpj', 'inscricao_estadual', 'cpf_socio'].includes(header)) {
+                value = convertScientificNotation(value);
+            }
+            
+            row[header] = value;
+        });
+        
+        csvData.push(row);
+    }
+    
+    // Verificar duplicados dentro do próprio CSV
+    const cnpjMap = new Map();
+    const duplicadosNoCSV = [];
+    
+    csvData.forEach((row, index) => {
+        const cnpj = row.cnpj;
+        if (cnpjMap.has(cnpj)) {
+            duplicadosNoCSV.push({
+                linha: index + 2, // +2 porque index é 0-based e primeira linha é header
+                nome: row.nome_empresa,
+                cnpj: cnpj,
+                primeiraOcorrencia: cnpjMap.get(cnpj)
+            });
+        } else {
+            cnpjMap.set(cnpj, index + 2);
+        }
+    });
+    
+    // Avisar sobre duplicados no CSV
+    if (duplicadosNoCSV.length > 0) {
+        const mensagem = duplicadosNoCSV.map(d => 
+            `Linha ${d.linha}: "${d.nome}" (CNPJ: ${d.cnpj}) duplicado da linha ${d.primeiraOcorrencia}`
+        ).join('\n');
+        
+        utils.showNotification(`⚠️ Encontrados ${duplicadosNoCSV.length} CNPJs duplicados no arquivo CSV:\n${mensagem}`, 'error');
+        console.warn('Duplicados no CSV:', duplicadosNoCSV);
+    }
+    
+    showCSVPreview(csvData, headers);
+    
+    console.log('CSV parseado com sucesso:', csvData.length, 'linhas');
+    console.log('Primeira linha:', csvData[0]);
+    
+    const importBtn = document.getElementById('importarCsvBtn');
+    if (importBtn) {
+        importBtn.disabled = false;
+    }
+}
+
+function showCSVPreview(data, headers) {
+    const preview = document.getElementById('csvPreview');
+    const previewHeader = document.getElementById('csvPreviewHeader');
+    const previewBody = document.getElementById('csvPreviewBody');
+    const totalRows = document.getElementById('csvTotalRows');
+    
+    if (!preview || !previewHeader || !previewBody) return;
+    
+    // Mostrar cabeçalho
+    previewHeader.innerHTML = `
+        <tr>
+            ${headers.map(h => `<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">${h}</th>`).join('')}
+        </tr>
+    `;
+    
+    // Mostrar primeiras 5 linhas
+    const previewData = data.slice(0, 5);
+    previewBody.innerHTML = previewData.map(row => `
+        <tr>
+            ${headers.map(h => `<td class="px-4 py-2 text-sm text-gray-900">${row[h] || ''}</td>`).join('')}
+        </tr>
+    `).join('');
+    
+    if (totalRows) {
+        totalRows.textContent = `Total de ${data.length} empresa${data.length !== 1 ? 's' : ''} para importar`;
+    }
+    
+    preview.classList.remove('hidden');
+}
+
+export async function importarCSV() {
+    if (!csvData || csvData.length === 0) {
+        utils.showNotification('Nenhum dado para importar', 'error');
+        return;
+    }
+    
+    console.log('Iniciando importação de', csvData.length, 'empresas');
+    console.log('Dados a enviar:', csvData);
+    
+    const importBtn = document.getElementById('importarCsvBtn');
+    const resultDiv = document.getElementById('importResult');
+    
+    if (importBtn) {
+        importBtn.disabled = true;
+        importBtn.innerHTML = '<i data-lucide="loader" class="h-4 w-4 mr-2 animate-spin"></i> Importando...';
+    }
+    
+    try {
+        const result = await api.importarEmpresasCSV(csvData);
+        
+        if (resultDiv) {
+            // Determinar a cor e ícone baseado no resultado
+            const hasSuccess = result.sucesso > 0;
+            const hasErrors = result.erros > 0;
+            const allFailed = result.sucesso === 0 && result.erros > 0;
+            
+            const bgColor = allFailed ? 'bg-red-50' : hasSuccess ? 'bg-green-50' : 'bg-yellow-50';
+            const borderColor = allFailed ? 'border-red-200' : hasSuccess ? 'border-green-200' : 'border-yellow-200';
+            const iconColor = allFailed ? 'text-red-600' : hasSuccess ? 'text-green-600' : 'text-yellow-600';
+            const iconName = allFailed ? 'x-circle' : hasSuccess ? 'check-circle' : 'alert-circle';
+            const titleColor = allFailed ? 'text-red-900' : hasSuccess ? 'text-green-900' : 'text-yellow-900';
+            const titleText = allFailed ? 'Nenhuma empresa importada!' : hasSuccess && !hasErrors ? 'Importação concluída!' : 'Importação concluída com avisos';
+            
+            resultDiv.innerHTML = `
+                <div class="${bgColor} border ${borderColor} rounded-lg p-4">
+                    <div class="flex items-start">
+                        <i data-lucide="${iconName}" class="h-5 w-5 ${iconColor} mr-3 mt-0.5"></i>
+                        <div class="flex-1">
+                            <h4 class="text-sm font-medium ${titleColor}">${titleText}</h4>
+                            <div class="mt-2 text-sm">
+                                ${result.sucesso > 0 ? `<p class="text-green-700">✓ ${result.sucesso} empresa${result.sucesso !== 1 ? 's' : ''} importada${result.sucesso !== 1 ? 's' : ''} com sucesso</p>` : ''}
+                                ${result.erros > 0 ? `<p class="text-red-700">✗ ${result.erros} ${allFailed ? 'empresa' : 'erro'}${result.erros !== 1 ? 's' : ''} ${allFailed ? 'não foi importada (já existe no sistema)' : ''}</p>` : ''}
+                            </div>
+                            ${result.detalhes && result.detalhes.length > 0 ? `
+                                <details class="mt-3" ${allFailed ? 'open' : ''}>
+                                    <summary class="text-sm font-medium cursor-pointer ${allFailed ? 'text-red-800' : 'text-green-800'} hover:underline">
+                                        ${allFailed ? 'Ver empresas não importadas' : 'Ver detalhes da importação'}
+                                    </summary>
+                                    <ul class="mt-2 text-xs space-y-1 max-h-60 overflow-y-auto">
+                                        ${result.detalhes.map(d => `<li class="${d.includes('✓') ? 'text-green-700' : 'text-red-700'}">${d}</li>`).join('')}
+                                    </ul>
+                                </details>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            resultDiv.classList.remove('hidden');
+            lucide.createIcons();
+        }
+        
+        // Notificação baseada no resultado
+        if (result.sucesso === 0 && result.erros > 0) {
+            utils.showNotification(
+                `❌ Nenhuma empresa foi importada. ${result.erros} empresa${result.erros !== 1 ? 's' : ''} já existe${result.erros === 1 ? '' : 'm'} no sistema.`,
+                'error'
+            );
+        } else if (result.sucesso > 0 && result.erros === 0) {
+            utils.showNotification(
+                `✅ ${result.sucesso} empresa${result.sucesso !== 1 ? 's' : ''} importada${result.sucesso !== 1 ? 's' : ''} com sucesso!`,
+                'success'
+            );
+        } else if (result.sucesso > 0 && result.erros > 0) {
+            utils.showNotification(
+                `⚠️ Importação parcial: ${result.sucesso} importada${result.sucesso !== 1 ? 's' : ''}, ${result.erros} já existente${result.erros !== 1 ? 's' : ''}`,
+                'error'
+            );
+        }
+        
+        // Fechar modal e recarregar lista após sucesso parcial ou total
+        if (result.sucesso > 0) {
+            setTimeout(() => {
+                closeEmpresaModal();
+                loadEmpresas();
+            }, 3000);
+        }
+        
+    } catch (error) {
+        console.error('Erro ao importar CSV:', error);
+        console.error('Stack:', error.stack);
+        
+        if (resultDiv) {
+            resultDiv.innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-start">
+                        <i data-lucide="x-circle" class="h-5 w-5 text-red-600 mr-3 mt-0.5"></i>
+                        <div>
+                            <h4 class="text-sm font-medium text-red-900">Erro na importação</h4>
+                            <p class="mt-1 text-sm text-red-700">${error.message || 'Erro desconhecido'}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            resultDiv.classList.remove('hidden');
+            lucide.createIcons();
+        }
+        
+        utils.showNotification('Erro ao importar empresas', 'error');
+    } finally {
+        if (importBtn) {
+            importBtn.disabled = false;
+            importBtn.innerHTML = '<i data-lucide="upload" class="h-4 w-4 mr-2"></i> Importar Empresas';
+            lucide.createIcons();
+        }
+    }
+}
+
+// Função de auto-login SEFAZ (idêntica à das mensagens)
+export async function autoLoginEmpresa(inscricaoEstadual) {
+    try {
+        if (!inscricaoEstadual) {
+            utils.showNotification('Inscrição estadual não informada', 'error');
+            return;
+        }
+
+        // Buscar credenciais da empresa
+        const empresa = await api.get(`/api/empresas/credenciais-por-ie/${inscricaoEstadual}`);
+        
+        const cpf = empresa.cpf_socio;
+        const senha = empresa.senha;
+
+        if (!senha) {
+            utils.showNotification('Senha não disponível para esta empresa', 'error');
+            return;
+        }
+
+        // Extrair link do recibo - primeiro tentar do banco, depois do conteúdo
+        let linkRecibo = empresa.link_recibo;
+        
+        if (!linkRecibo && empresa.conteudo_mensagem) {
+            console.log('⚠️ Link não encontrado no banco, tentando extrair do conteúdo...');
+            
+            // Tentar várias regex para pegar o link
+            const regex1 = /href="([^"]*listIReciboDief\.do[^"]*)">/i;
+            const regex2 = /href='([^']*listIReciboDief\.do[^']*)'>/i;
+            const regex3 = /(https?:\/\/[^"'\s]*listIReciboDief\.do[^"'\s]*)/i;
+            
+            let match = empresa.conteudo_mensagem.match(regex1);
+            if (!match) match = empresa.conteudo_mensagem.match(regex2);
+            if (!match) match = empresa.conteudo_mensagem.match(regex3);
+            
+            if (match) {
+                linkRecibo = match[1].replace(/&amp;/g, '&');
+                console.log('✅ Link do recibo extraído do conteúdo:', linkRecibo);
+            }
+        }
+
+        // Abrir SEFAZ em nova aba
+        const sefazWindow = window.open('https://sefaznet.sefaz.ma.gov.br/sefaznet/login.do?method=prepareLogin', '_blank');
+        
+        if (!sefazWindow) {
+            utils.showNotification('Popup bloqueado! Permita popups para este site.', 'error');
+            return;
+        }
+
+        // Configurar listener para quando a extensão avisar que login completou
+        console.log('👂 Configurando listener para aguardar login completo...');
+        
+        const loginListener = (event) => {
+            console.log('📨 Mensagem recebida:', event.data);
+            
+            if (event.data && event.data.type === 'SEFAZ_LOGIN_COMPLETO') {
+                console.log('✅ Recebido aviso de login completo!', event.data);
+                const link = event.data.linkRecibo;
+                
+                if (link) {
+                    console.log('📄 Abrindo recibo:', link);
+                    const novaAba = window.open(link, '_blank');
+                    
+                    if (novaAba) {
+                        console.log('✅ Recibo aberto com sucesso!');
+                        utils.showNotification('Recibo DIEF aberto! 📄', 'success');
+                    } else {
+                        console.error('❌ Falha ao abrir recibo - popup bloqueado?');
+                        utils.showNotification('Popup bloqueado! Permita popups e tente novamente.', 'error');
+                    }
+                } else {
+                    console.warn('⚠️ Link do recibo não encontrado no evento');
+                }
+                
+                window.removeEventListener('message', loginListener);
+                console.log('✅ Listener removido');
+            }
+        };
+        
+        window.addEventListener('message', loginListener);
+        console.log('✅ Listener configurado e aguardando mensagem...');
+        
+        // Aguardar página carregar e enviar credenciais
+        setTimeout(() => {
+            console.log('📤 Enviando credenciais para extensão...');
+            console.log('🪟 sefazWindow existe?', !!sefazWindow);
+            console.log('📦 Dados a enviar:', { type: 'SEFAZ_AUTO_LOGIN', cpf, linkRecibo });
+            
+            sefazWindow.postMessage({
+                type: 'SEFAZ_AUTO_LOGIN',
+                cpf: cpf,
+                senha: senha,
+                linkRecibo: linkRecibo
+            }, 'https://sefaznet.sefaz.ma.gov.br');
+            
+            console.log('✅ postMessage executado');
+            utils.showNotification('Fazendo login automaticamente! 🚀', 'success');
+        }, 3000);
+
+    } catch (error) {
+        console.error('Erro ao abrir SEFAZ:', error);
+        utils.showNotification('Erro ao buscar credenciais da empresa', 'error');
+    }
 }

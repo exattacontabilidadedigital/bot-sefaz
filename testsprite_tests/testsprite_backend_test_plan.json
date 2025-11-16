@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "create_company_api_should_validate_required_fields_and_store_password_securely",
+    "description": "Test the POST /api/empresas endpoint to ensure it validates all required fields (nome_empresa, cnpj, inscricao_estadual, cpf_socio, senha) and securely stores the password without exposing it in the response."
+  },
+  {
+    "id": "TC002",
+    "title": "list_companies_api_should_support_pagination_and_filtering",
+    "description": "Test the GET /api/empresas endpoint to verify it supports pagination parameters (limit, offset) and filtering by search term and ativo status, returning the correct subset of companies."
+  },
+  {
+    "id": "TC003",
+    "title": "get_company_by_id_api_should_return_correct_company_or_404",
+    "description": "Test the GET /api/empresas/{id} endpoint to ensure it returns the correct company details for a valid id and returns a 404 error for an invalid or non-existent id."
+  },
+  {
+    "id": "TC004",
+    "title": "update_company_api_should_modify_fields_and_preserve_password_security",
+    "description": "Test the PUT /api/empresas/{id} endpoint to verify it updates company details correctly, enforces validation, and does not expose or mishandle the password field."
+  },
+  {
+    "id": "TC005",
+    "title": "delete_company_api_should_remove_company_and_handle_nonexistent_id",
+    "description": "Test the DELETE /api/empresas/{id} endpoint to confirm it deletes the specified company and handles attempts to delete non-existent companies gracefully."
+  },
+  {
+    "id": "TC006",
+    "title": "list_consultations_api_should_support_advanced_filtering_and_pagination",
+    "description": "Test the GET /api/consultas endpoint to verify it supports filtering by status, tem_tvi, tem_divida, search, and pagination parameters, returning the latest consultations per inscricao_estadual."
+  },
+  {
+    "id": "TC007",
+    "title": "delete_consultation_api_should_remove_consultation_by_id",
+    "description": "Test the DELETE /api/consultas/{id} endpoint to ensure it deletes the consultation record identified by id and handles invalid ids appropriately."
+  },
+  {
+    "id": "TC008",
+    "title": "add_companies_to_queue_api_should_accept_valid_company_ids_and_priorities",
+    "description": "Test the POST /api/fila/adicionar endpoint to verify it accepts a list of valid empresa_ids and optional prioridade, adds them to the job queue, and returns a success response."
+  },
+  {
+    "id": "TC009",
+    "title": "start_queue_processing_api_should_initiate_job_execution",
+    "description": "Test the POST /api/fila/iniciar endpoint to confirm it starts the processing of queued jobs and returns the current queue status."
+  },
+  {
+    "id": "TC010",
+    "title": "execute_consultation_background_api_should_trigger_async_query_with_credentials",
+    "description": "Test the POST /api/consulta endpoint to ensure it triggers a background SEFAZ consultation asynchronously using provided user credentials and headless mode option, returning the status response immediately."
+  }
+]

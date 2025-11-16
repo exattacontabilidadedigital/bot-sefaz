@@ -1,0 +1,16 @@
+{
+  "status": "commited",
+  "type": "backend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:8000",
+  "backendAuthType": "public",
+  "executionArgs": {
+    "projectName": "consulta-ie",
+    "projectPath": "d:\\CODIGOS\\copilot\\consulta-ie",
+    "testIds": [],
+    "additionalInstruction": "O servidor local não está ativo (porta 8000). Execute apenas testes que não dependem de serviço rodando ou reporte claramente falhas de conexão.",
+    "envs": {
+      "API_KEY": "sk-user-HXKH5XBI1914AYpsArRxQJpFZeOfh93vFI3szPuBf1spa50kEuwfddFSUqPLfJTEZHD-Lhq9pGuyriJ9XLAdqkkcL0-T7284w6hx5ow56IpkPhkoQUCr9Qm7vHBgpTTp9eI"
+    }
+  }
+}

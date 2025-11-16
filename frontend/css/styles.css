@@ -23,6 +23,18 @@
     color: #3b82f6;
 }
 
+.tab-empresa-btn {
+    cursor: pointer;
+    transition: all 0.2s;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+}
+
+.tab-empresa-btn:hover {
+    border-color: #d1d5db;
+}
+
 .tab-content {
     display: none;
 }

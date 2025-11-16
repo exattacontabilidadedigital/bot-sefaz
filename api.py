@@ -1,10 +1,19 @@
+# CRITICAL: Set event loop policy FIRST before any other imports
+# This fixes Playwright NotImplementedError on Windows Python 3.13+
+import asyncio
+import sys
+if sys.platform == 'win32' and sys.version_info >= (3, 8):
+    try:
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    except AttributeError:
+        pass
+
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 import sqlite3
-import asyncio
 from datetime import datetime
 from typing import List, Optional
 import json
@@ -13,6 +22,7 @@ import hashlib
 from bot import SEFAZBot
 from cryptography.fernet import Fernet
 import base64
+from bot_error_messages import get_user_friendly_error_message, get_error_category
 
 app = FastAPI(title="SEFAZ Bot API", description="API para consultas SEFAZ", version="1.0.0")
 
@@ -20,8 +30,19 @@ app = FastAPI(title="SEFAZ Bot API", description="API para consultas SEFAZ", ver
 app.mount("/css", StaticFiles(directory="frontend/css"), name="css")
 app.mount("/js", StaticFiles(directory="frontend/js"), name="js")
 
+# Rota específica para favicon
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return FileResponse("frontend/favicon.ico")
+
+# Rota para Chrome DevTools (suprime erro 404 nos logs)
+@app.get("/.well-known/appspecific/com.chrome.devtools.json", include_in_schema=False)
+async def chrome_devtools():
+    return {}
+
 # Configuração do banco de dados
 DB_PATH = os.getenv('DB_PATH', 'sefaz_consulta.db')
+DB_MENSAGENS = os.getenv('DB_MENSAGENS', 'sefaz_consulta.db')  # Mesmo banco para mensagens
 
 # Controle de processamento da fila
 processing_task = None
@@ -311,6 +332,23 @@ async def contar_empresas(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao contar empresas: {str(e)}")
 
+@app.get("/api/empresas/template-csv", response_class=FileResponse)
+def download_template_csv():
+    """Baixar template CSV para importação de empresas"""
+    file_path = "empresas_template.csv"
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Template não encontrado")
+    
+    return FileResponse(
+        path=file_path,
+        filename="empresas_template.csv",
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": "attachment; filename=empresas_template.csv"
+        }
+    )
+
 @app.get("/api/empresas/{empresa_id}", response_model=EmpresaResponse)
 async def obter_empresa(empresa_id: int):
     """Obter empresa por ID"""
@@ -446,6 +484,143 @@ async def excluir_empresa(empresa_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao excluir empresa: {str(e)}")
 
+@app.get("/api/empresas/{empresa_id}/credenciais")
+async def obter_credenciais_empresa(empresa_id: int):
+    """Obter credenciais de login da empresa (CPF e senha)"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT cpf_socio, senha, nome_empresa, inscricao_estadual FROM empresas WHERE id = ?", (empresa_id,))
+        row = cursor.fetchone()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+        
+        conn.close()
+        
+        return {
+            "cpf_socio": row["cpf_socio"],
+            "senha": row["senha"],
+            "nome_empresa": row["nome_empresa"],
+            "inscricao_estadual": row["inscricao_estadual"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao obter credenciais: {str(e)}")
+
+@app.get("/api/empresas/credenciais-por-ie/{inscricao_estadual}")
+async def obter_credenciais_por_ie(inscricao_estadual: str):
+    """Obter credenciais de login da empresa por Inscrição Estadual"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT id, cpf_socio, senha, nome_empresa, inscricao_estadual FROM empresas WHERE inscricao_estadual = ?", (inscricao_estadual,))
+        row = cursor.fetchone()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+        
+        conn.close()
+        
+        return {
+            "id": row["id"],
+            "cpf_socio": row["cpf_socio"],
+            "senha": row["senha"],
+            "nome_empresa": row["nome_empresa"],
+            "inscricao_estadual": row["inscricao_estadual"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao obter credenciais: {str(e)}")
+
+@app.post("/api/empresas/importar-csv")
+async def importar_empresas_csv(request: dict):
+    """Importar múltiplas empresas via CSV"""
+    try:
+        print(f"Recebido request: {request}")
+        empresas = request.get('empresas', [])
+        print(f"Total de empresas: {len(empresas)}")
+        
+        if not empresas:
+            raise HTTPException(status_code=400, detail="Nenhuma empresa fornecida")
+        
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        sucesso = 0
+        erros = 0
+        detalhes = []
+        
+        for empresa in empresas:
+            try:
+                print(f"Processando empresa: {empresa}")
+                
+                # Validar campos obrigatórios
+                nome = empresa.get('nome_empresa', '').strip()
+                cnpj = empresa.get('cnpj', '').strip()
+                ie = empresa.get('inscricao_estadual', '').strip()
+                cpf = empresa.get('cpf_socio', '').strip()
+                senha = empresa.get('senha', '').strip()
+                obs = empresa.get('observacoes', '').strip()
+                
+                print(f"Campos: nome={nome}, cnpj={cnpj}, ie={ie}, cpf={cpf}")
+                
+                if not all([nome, cnpj, ie, cpf, senha]):
+                    detalhes.append(f"❌ {nome or cnpj}: campos obrigatórios faltando")
+                    erros += 1
+                    continue
+                
+                # Verificar duplicatas no banco
+                cursor.execute("SELECT nome_empresa FROM empresas WHERE cnpj = ?", (cnpj,))
+                existing = cursor.fetchone()
+                if existing:
+                    detalhes.append(f"⚠️ {nome} (CNPJ: {cnpj}): já existe no sistema como '{existing[0]}'")
+                    erros += 1
+                    continue
+                
+                cursor.execute("SELECT nome_empresa FROM empresas WHERE inscricao_estadual = ?", (ie,))
+                existing_ie = cursor.fetchone()
+                if existing_ie:
+                    detalhes.append(f"⚠️ {nome} (IE: {ie}): já existe no sistema como '{existing_ie[0]}'")
+                    erros += 1
+                    continue
+                
+                # Inserir empresa
+                cursor.execute("""
+                    INSERT INTO empresas (nome_empresa, cnpj, inscricao_estadual, cpf_socio, senha, observacoes, ativo)
+                    VALUES (?, ?, ?, ?, ?, ?, 1)
+                """, (nome, cnpj, ie, cpf, senha, obs))
+                
+                detalhes.append(f"✓ {nome}: importada com sucesso")
+                sucesso += 1
+                
+            except Exception as e:
+                detalhes.append(f"❌ {empresa.get('nome_empresa', 'N/A')}: {str(e)}")
+                erros += 1
+        
+        conn.commit()
+        conn.close()
+        
+        return {
+            "sucesso": sucesso,
+            "erros": erros,
+            "total": len(empresas),
+            "detalhes": detalhes
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao importar empresas: {str(e)}")
+
 # ================================
 # ENDPOINTS ORIGINAIS (CONSULTAS)
 # ================================
@@ -548,6 +723,21 @@ async def get_consultas(
         
         consultas = []
         for row in rows:
+            # Formatar tem_tvi para exibição
+            tem_tvi_display = row["tem_tvi"]
+            if tem_tvi_display:
+                try:
+                    # Tentar converter para float
+                    tvi_valor = float(tem_tvi_display)
+                    if tvi_valor > 0:
+                        # Formatar como moeda brasileira
+                        tem_tvi_display = f"R$ {tvi_valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                    elif tvi_valor == 0:
+                        tem_tvi_display = "NÃO"
+                except (ValueError, TypeError):
+                    # Se não for número, manter o valor original (SIM, NÃO, ERRO, etc)
+                    pass
+            
             consulta = ConsultaResponse(
                 id=row["id"],
                 nome_empresa=row["nome_empresa"],
@@ -556,7 +746,7 @@ async def get_consultas(
                 cpf_socio=row["cpf_socio"],
                 chave_acesso=row["chave_acesso"],
                 status_ie=row["status_ie"],
-                tem_tvi=row["tem_tvi"],
+                tem_tvi=tem_tvi_display,
                 valor_debitos=row["valor_debitos"],
                 tem_divida_pendente=row["tem_divida_pendente"],
                 omisso_declaracao=row["omisso_declaracao"],
@@ -657,6 +847,256 @@ async def get_consultas_count(
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao contar consultas: {str(e)}")
+
+# ========================================
+# ENDPOINTS DE MENSAGENS SEFAZ
+# ========================================
+
+class MensagemResponse(BaseModel):
+    id: int
+    inscricao_estadual: Optional[str]
+    nome_empresa: Optional[str]
+    enviada_por: Optional[str]
+    data_envio: Optional[str]
+    assunto: Optional[str]
+    classificacao: Optional[str]
+    tributo: Optional[str]
+    tipo_mensagem: Optional[str]
+    numero_documento: Optional[str]
+    vencimento: Optional[str]
+    competencia_dief: Optional[str]
+    status_dief: Optional[str]
+    chave_dief: Optional[str]
+    protocolo_dief: Optional[str]
+    data_leitura: Optional[str]
+    data_ciencia: Optional[str]
+    conteudo_mensagem: Optional[str]
+    conteudo_html: Optional[str]
+    link_recibo: Optional[str]
+
+@app.get("/api/mensagens", response_model=List[MensagemResponse])
+async def get_mensagens(
+    limit: int = 50,
+    offset: int = 0,
+    search: Optional[str] = None,
+    inscricao_estadual: Optional[str] = None,
+    assunto: Optional[str] = None
+):
+    """Retorna mensagens SEFAZ com filtros e paginação"""
+    try:
+        print(f"🔍 GET /api/mensagens - Parâmetros recebidos:")
+        print(f"   - limit: {limit}")
+        print(f"   - offset: {offset}")
+        print(f"   - search: {search}")
+        print(f"   - inscricao_estadual: {inscricao_estadual}")
+        print(f"   - assunto: {assunto}")
+        
+        conn = sqlite3.connect(DB_MENSAGENS)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Construir query com filtros
+        where_conditions = []
+        params = []
+        
+        if search:
+            where_conditions.append("(assunto LIKE ? OR conteudo_mensagem LIKE ? OR nome_empresa LIKE ?)")
+            params.extend([f"%{search}%", f"%{search}%", f"%{search}%"])
+        
+        if inscricao_estadual:
+            where_conditions.append("inscricao_estadual = ?")
+            params.append(inscricao_estadual)
+            print(f"   ✓ Filtro IE aplicado: {inscricao_estadual}")
+        
+        if assunto:
+            where_conditions.append("assunto LIKE ?")
+            params.append(f"%{assunto}%")
+            print(f"   ✓ Filtro assunto aplicado: {assunto}")
+        
+        where_clause = ""
+        if where_conditions:
+            where_clause = "WHERE " + " AND ".join(where_conditions)
+        
+        query = f"""
+            SELECT * FROM mensagens_sefaz
+            {where_clause}
+            ORDER BY data_envio DESC, id DESC
+            LIMIT ? OFFSET ?
+        """
+        params.extend([limit, offset])
+        
+        print(f"   📋 Query SQL: {query}")
+        print(f"   📋 Parâmetros: {params}")
+        
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        
+        print(f"   ✅ Mensagens encontradas: {len(rows)}")
+        
+        mensagens = []
+        for row in rows:
+            row_dict = dict(row)
+            mensagens.append({
+                "id": row_dict["id"],
+                "inscricao_estadual": row_dict["inscricao_estadual"],
+                "nome_empresa": row_dict.get("nome_empresa"),
+                "enviada_por": row_dict["enviada_por"],
+                "data_envio": row_dict["data_envio"],
+                "assunto": row_dict["assunto"],
+                "classificacao": row_dict.get("classificacao"),
+                "tributo": row_dict.get("tributo"),
+                "tipo_mensagem": row_dict.get("tipo_mensagem"),
+                "numero_documento": row_dict.get("numero_documento"),
+                "vencimento": row_dict.get("vencimento"),
+                "competencia_dief": row_dict.get("competencia_dief"),
+                "status_dief": row_dict.get("status_dief"),
+                "chave_dief": row_dict.get("chave_dief"),
+                "protocolo_dief": row_dict.get("protocolo_dief"),
+                "data_leitura": row_dict.get("data_leitura"),
+                "data_ciencia": row_dict.get("data_ciencia"),
+                "conteudo_mensagem": row_dict["conteudo_mensagem"],
+                "conteudo_html": row_dict.get("conteudo_html"),
+                "link_recibo": row_dict.get("link_recibo")
+            })
+        
+        conn.close()
+        return mensagens
+    
+    except Exception as e:
+        import traceback
+        error_detail = f"Erro ao buscar mensagens: {str(e)}\n{traceback.format_exc()}"
+        print(f"❌ ERRO NO ENDPOINT /api/mensagens:")
+        print(error_detail)
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar mensagens: {str(e)}")
+
+@app.get("/api/mensagens/count")
+async def get_mensagens_count(
+    search: Optional[str] = None,
+    inscricao_estadual: Optional[str] = None,
+    assunto: Optional[str] = None
+):
+    """Retorna o total de mensagens"""
+    try:
+        print(f"🔍 GET /api/mensagens/count - Parâmetros:")
+        print(f"   - inscricao_estadual: {inscricao_estadual}")
+        print(f"   - assunto: {assunto}")
+        
+        conn = sqlite3.connect(DB_MENSAGENS)
+        cursor = conn.cursor()
+        
+        where_conditions = []
+        params = []
+        
+        if search:
+            where_conditions.append("(assunto LIKE ? OR conteudo_mensagem LIKE ? OR nome_empresa LIKE ?)")
+            params.extend([f"%{search}%", f"%{search}%", f"%{search}%"])
+        
+        if inscricao_estadual:
+            where_conditions.append("inscricao_estadual = ?")
+            params.append(inscricao_estadual)
+        
+        if assunto:
+            where_conditions.append("assunto LIKE ?")
+            params.append(f"%{assunto}%")
+        
+        where_clause = ""
+        if where_conditions:
+            where_clause = "WHERE " + " AND ".join(where_conditions)
+        
+        query = f"SELECT COUNT(*) FROM mensagens_sefaz {where_clause}"
+        cursor.execute(query, params)
+        total = cursor.fetchone()[0]
+        
+        conn.close()
+        return {"total": total}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao contar mensagens: {str(e)}")
+
+@app.get("/api/mensagens/empresas")
+async def listar_empresas_mensagens():
+    """Lista empresas únicas que têm mensagens"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        query = """
+            SELECT DISTINCT 
+                inscricao_estadual,
+                nome_empresa
+            FROM mensagens_sefaz 
+            WHERE inscricao_estadual IS NOT NULL 
+                AND inscricao_estadual != ''
+                AND nome_empresa IS NOT NULL
+            ORDER BY nome_empresa
+        """
+        
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        conn.close()
+        
+        empresas = []
+        for row in rows:
+            empresas.append({
+                "inscricao_estadual": row["inscricao_estadual"],
+                "nome_empresa": row["nome_empresa"]
+            })
+        
+        return empresas
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao listar empresas: {str(e)}")
+
+@app.get("/api/mensagens/{mensagem_id}", response_model=MensagemResponse)
+async def get_mensagem(mensagem_id: int):
+    """Retorna uma mensagem específica pelo ID"""
+    try:
+        conn = sqlite3.connect(DB_MENSAGENS)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT * FROM mensagens_sefaz WHERE id = ?", (mensagem_id,))
+        row = cursor.fetchone()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Mensagem não encontrada")
+        
+        row_dict = dict(row)
+        mensagem = {
+            "id": row_dict["id"],
+            "inscricao_estadual": row_dict["inscricao_estadual"],
+            "nome_empresa": row_dict.get("nome_empresa"),
+            "enviada_por": row_dict["enviada_por"],
+            "data_envio": row_dict["data_envio"],
+            "assunto": row_dict["assunto"],
+            "classificacao": row_dict.get("classificacao"),
+            "tributo": row_dict.get("tributo"),
+            "tipo_mensagem": row_dict.get("tipo_mensagem"),
+            "numero_documento": row_dict.get("numero_documento"),
+            "vencimento": row_dict.get("vencimento"),
+            "competencia_dief": row_dict.get("competencia_dief"),
+            "status_dief": row_dict.get("status_dief"),
+            "chave_dief": row_dict.get("chave_dief"),
+            "protocolo_dief": row_dict.get("protocolo_dief"),
+            "data_leitura": row_dict.get("data_leitura"),
+            "data_ciencia": row_dict.get("data_ciencia"),
+            "conteudo_mensagem": row_dict["conteudo_mensagem"],
+            "conteudo_html": row_dict.get("conteudo_html"),
+            "link_recibo": row_dict.get("link_recibo")
+        }
+        
+        conn.close()
+        return mensagem
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar mensagem: {str(e)}")
+
+# ========================================
+# FIM ENDPOINTS DE MENSAGENS SEFAZ
+# ========================================
 
 @app.get("/api/status", response_model=StatusResponse)
 async def get_status():
@@ -881,6 +1321,9 @@ async def listar_fila(limit: int = 50, offset: int = 0):
         
         jobs = []
         for row in cursor.fetchall():
+            erro_original = row[11]
+            erro_amigavel = get_user_friendly_error_message(erro_original) if erro_original else None
+            
             jobs.append({
                 "id": row[0],
                 "empresa_id": row[1],
@@ -893,7 +1336,7 @@ async def listar_fila(limit: int = 50, offset: int = 0):
                 "data_processamento": row[8],
                 "tentativas": row[9],
                 "max_tentativas": row[10],
-                "erro": row[11]
+                "erro": erro_amigavel
             })
         
         conn.close()
@@ -935,6 +1378,21 @@ async def stats_fila():
 async def processar_fila():
     """Processa a fila de jobs sequencialmente"""
     global processing_active
+    
+    # CRITICAL: Forçar WindowsSelectorEventLoopPolicy para Playwright funcionar no Windows Python 3.13+
+    if sys.platform == 'win32' and sys.version_info >= (3, 8):
+        try:
+            import asyncio
+            current_policy = asyncio.get_event_loop_policy()
+            if not isinstance(current_policy, asyncio.WindowsSelectorEventLoopPolicy):
+                print(f"⚠️ Alterando event loop policy de {current_policy.__class__.__name__} para WindowsSelectorEventLoopPolicy")
+                asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+                # Criar novo event loop com a policy correta
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                print(f"✅ Event loop policy alterada com sucesso")
+        except Exception as e:
+            print(f"⚠️ Aviso ao configurar event loop policy: {e}")
     
     print(f"🚀 ========================================")
     print(f"🚀 INICIANDO processar_fila()")
@@ -1274,46 +1732,6 @@ async def contar_mensagens(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao contar mensagens: {str(e)}")
 
-
-@app.get("/api/mensagens/{mensagem_id}", response_model=MensagemSefazResponse)
-async def obter_mensagem(mensagem_id: int):
-    """Obtém uma mensagem específica"""
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        
-        cursor.execute("SELECT * FROM mensagens_sefaz WHERE id = ?", (mensagem_id,))
-        row = cursor.fetchone()
-        
-        if not row:
-            raise HTTPException(status_code=404, detail="Mensagem não encontrada")
-        
-        mensagem = MensagemSefazResponse(
-            id=row["id"],
-            inscricao_estadual=row["inscricao_estadual"],
-            cpf_socio=row["cpf_socio"],
-            enviada_por=row["enviada_por"],
-            data_envio=row["data_envio"],
-            assunto=row["assunto"],
-            classificacao=row["classificacao"],
-            tributo=row["tributo"],
-            tipo_mensagem=row["tipo_mensagem"],
-            numero_documento=row["numero_documento"],
-            vencimento=row["vencimento"],
-            tipo_ciencia=row["tipo_ciencia"],
-            data_ciencia=row["data_ciencia"],
-            conteudo_mensagem=row["conteudo_mensagem"],
-            data_leitura=row["data_leitura"]
-        )
-        
-        conn.close()
-        return mensagem
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao obter mensagem: {str(e)}")
 
 # Servir arquivos estáticos do frontend
 try:
