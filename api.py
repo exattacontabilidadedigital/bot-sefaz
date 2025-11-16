@@ -1619,6 +1619,38 @@ async def status_processamento():
         "processando": processing_active
     }
 
+@app.post("/api/fila/limpar-travados")
+async def limpar_jobs_travados():
+    """Limpa jobs travados (pendentes ou processando há muito tempo)"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Marcar como failed jobs que estão processando há mais de 1 hora
+        cursor.execute("""
+            UPDATE queue_jobs 
+            SET status = 'failed', 
+                erro_detalhes = 'Job travado - limpeza automática',
+                data_fim = datetime('now')
+            WHERE status IN ('pendente', 'processando')
+            AND (
+                data_inicio IS NULL 
+                OR datetime(data_inicio, '+1 hour') < datetime('now')
+            )
+        """)
+        
+        jobs_limpos = cursor.rowcount
+        conn.commit()
+        conn.close()
+        
+        return {
+            "message": f"{jobs_limpos} job(s) travado(s) limpo(s) com sucesso",
+            "jobs_limpos": jobs_limpos
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao limpar jobs travados: {str(e)}")
+
 # ================================
 # ENDPOINTS PARA MENSAGENS SEFAZ
 # ================================
