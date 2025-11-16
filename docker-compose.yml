@@ -8,7 +8,7 @@ services:
       - "8000:8000"
     volumes:
       - bot-data:/app/data
-      - ./sefaz_consulta.db:/app/sefaz_consulta.db
+      - db-data:/app
     environment:
       # Configuração do Bot
       - HEADLESS=${HEADLESS:-true}
@@ -38,6 +38,8 @@ services:
 
 volumes:
   bot-data:
+    driver: local
+  db-data:
     driver: local
 
 networks:
