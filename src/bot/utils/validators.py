@@ -3,7 +3,7 @@ Validadores e exceções customizadas para o bot SEFAZ
 """
 import re
 from typing import Optional
-from bot_constants import REGEX_CPF, REGEX_IE
+from src.bot.utils.constants import REGEX_CPF, REGEX_IE
 
 
 # ============================================================================

@@ -1,0 +1,219 @@
+<html><head>
+	<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="SEFAZ.NET Sistema de Transmissão de Informações Fiscais pela Internet">
+    <meta name="author" content="COTEC SEFAZ MA">
+    <link rel="icon" href="/sefaznet/images/favicon.ico">
+    
+    <title>Sefaz.net | Autenticação de Usuário | Secretaria de Estado da Fazenda do Maranhão</title>
+    
+    <!-- Bootstrap core CSS -->
+    <link href="/sefaznet/styles-bs/bootstrap.min.css" rel="stylesheet">
+    <link href="/sefaznet/styles-bs/docs.min.css" rel="stylesheet">
+    
+    <!-- Custom styles for this template -->
+    <link href="/sefaznet/styles-bs/sefaznet-login.css" rel="stylesheet">
+        
+	<!--[if lt IE 8]><script type="text/javascript">window.location.assign("/sefaznet/jsp/message.jsp?id=1")</script><![endif]-->
+    <!-- Just for debugging purposes. Don't actually copy these 2 lines! -->
+    <!--[if lt IE 9]><script src="../../assets/js/ie8-responsive-file-warning.js"></script><![endif]-->
+    <script src="/sefaznet/js-bs/ie/ie-emulation-modes-warning.js"></script>
+
+    <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+    <script src="/sefaznet/js-bs/ie/ie10-viewport-bug-workaround.js"></script>
+    
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="/sefaznet/js-bs/ie/html5shiv.min.js"></script>
+      <script src="/sefaznet/js-bs/ie/respond.min.js"></script>
+    <![endif]-->    
+    
+	<script language="javascript" src="/sefaznet/js/validations.js"></script>
+	
+<style id="holderjs-style" type="text/css"></style></head>
+
+<body>
+	<div id="loading"></div>
+    <div class="site-wrapper">
+
+      <div class="site-wrapper-inner">
+
+        <div class="cover-container">
+
+          <div class="masthead clearfix">
+            <div class="inner">
+              <a href="/sefaznet"><img id="img_logo" src="/sefaznet/images/logo_sefaz_branco_exp.png" class="img-responsive"></a>
+              <ul class="nav masthead-nav">
+                <li><a href="http://www.sefaz.ma.gov.br" target="_blank">Portal Sefaz</a></li>
+                <li><a href="#" data-toggle="modal" data-target=".bs-example-modal-sm">Solicitar Acesso</a></li>
+				
+              </ul>
+            </div>
+          </div>
+		
+          <div class="inner cover">
+            <h1 class="cover-heading">Sefaz.Net</h1>
+            <p class="lead">Sistema de Transmissão de Informações Fiscais pela Internet</p>			
+				
+		      <form name="loginForm" method="post" action="/sefaznet/login.do" class="form-signin" onsubmit="$('#loading').show();" target="_top">
+		      	<input type="hidden" name="method" value="efetuarLogin">
+				
+		        <fieldset>
+		            <div class="alert alert-danger" role="alert" style="display:none">
+					    <strong>Erro!</strong> .
+					</div>
+					
+		            <div class="alert alert-danger" role="alert" style="display:none">
+					    <strong>Erro!</strong> .
+					</div>
+						
+		            <div id="balaoLembrete" class="alert alert-danger" role="alert" style="display:none">
+					    <strong>Lembrete de Senha!</strong> Primeiramente informe o usuário, em seguida clique em Lembrete de Senha.
+					</div>	
+						        
+	                <div class="input-group input-group-lg">
+	                    <span class="input-group-addon"><i class="glyphicon glyphicon-user"></i></span>
+	                    <input type="text" name="identificacao" value="" onkeydown="getKey(this,event);" style="border-bottom-right-radius:0;" class="form-control" placeholder="Usuário" required="required" autofocus="autofocus">                  
+	                </div>
+			        
+			        <div class="clearfix"></div>	
+	
+	                <div class="input-group input-group-lg">
+	                    <span class="input-group-addon"><i class="glyphicon glyphicon-lock"></i></span>
+						<input type="password" name="senha" onkeydown="getKey(this,event);" class="form-control" placeholder="Senha" required="required">
+	                </div>
+	                
+			        <div class="checkbox">
+			        	<div class="row">
+				        	
+						    
+						    <div class="col-xs-6">
+						    	<a href="javascript:logarViaCertificado();"><img id="img_certificado" src="/sefaznet/images/certificadodigitalsefaznet.png" class="img-responsive"></a>
+						    </div>
+						    
+						    <div class="col-xs-6">
+						    	<button class="btn btn-lg btn-warning btn-block" type="submit">Entrar</button>
+						    </div>						    
+						</div>
+			        </div>
+			        
+			        
+			        
+			        <div class="checkbox">
+				        <ul id="plusLogin">
+				        	
+				        	<li><i class="glyphicon glyphicon-question-sign"></i> <a href="javascript:lembrarSenha()">Lembrete de Senha.</a></li>
+				        	<li><i class="glyphicon glyphicon-edit"></i> <a href="javascript:ShowPopup('/sefaznet/insertISolicitacaoAlteraSenhaAutoAtendimento.do?method=preInsert&amp;target=preparePopup&amp;usuarioNaoLogado=true');">Altere sua senha.</a></li>
+				        </ul>
+			        </div>
+			    </fieldset>
+		      </form>
+		                 
+          </div>
+
+          <div class="mastfoot">
+            <div class="inner">
+              <p>
+              	Desenvolvido pelo Corpo Técnico - COTEC/SEFAZ-MA © 1997-2025<br>
+              	Aplicativo iniciado ou reinicializado em: 15:04, 13/11/2025 <br>
+				Versão do aplicativo: 2.5.582 <br>
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+    
+    <form name="lembraSenha" method="POST" action="/sefaznet/processILembraSenha.do">
+	  <input type="hidden" name="identificacao" value="">
+	  <input type="hidden" name="method" value="processarLembrarSenha">
+	</form>
+	
+	<!-- Modal -->
+	<div class="modal fade bs-example-modal-sm" id="myModal" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel" aria-hidden="true">
+	  <div class="modal-dialog modal-sm">
+	    <div class="modal-content">
+	      <div class="modal-header">
+	        <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">×</span><span class="sr-only">Close</span></button>
+	        <h4 class="modal-title" id="myModalLabel">Solicitação de Acesso</h4>
+	      </div>
+	      <div class="modal-body">
+	      	<div class="alert alert-success" role="alert">Clique em uma das modalidades de solicitação de acesso abaixo.</div>
+	        <ul id="plusLogin">
+	        	<li><i class="glyphicon glyphicon-print"></i> <a href="javascript:ShowPopup('/sefaznet/insertISolicitacaoCadastroAutoAtendimento.do?method=preInsert&amp;target=preparePopup&amp;usuarioNaoLogado=true');">Formulário Impresso</a></li>
+	        	<li><i class="glyphicon glyphicon-envelope"></i> <a href="https://sistemas1.sefaz.ma.gov.br/solicitacaoAcesso" target="_blank">Solicitar via e-mail</a></li>
+	        </ul>
+	      </div>
+	      <div class="modal-footer">
+	        <button type="button" class="btn btn-primary" data-dismiss="modal">Cancelar</button>
+	      </div>
+	    </div>
+	  </div>
+	</div>	
+	
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="/sefaznet/js-bs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="/sefaznet/js-bs/bootstrap.min.js"></script>
+    <script src="/sefaznet/js-bs/docs.min.js"></script>
+    <script src="/sefaznet/js-bs/placeholders.jquery.min.js"></script>
+    
+
+	<script language="javascript">
+		$(document).ready(function() {
+		    $("input:text[name='identificacao']").attr("placeholder", "Usuário");
+		    $("input:text[name='identificacao']").attr("required","");
+		    $("input:text[name='identificacao']").attr("autofocus","");
+		    
+		    $("input[name='senha']").attr("placeholder", "Senha");
+		    $("input[name='senha']").attr("required",""); 
+		    
+		    $("input[name='captcha']").attr("placeholder", "Código");
+		    $("input[name='captcha']").attr("required",""); 	
+		});
+
+
+		function lembrarSenha(){
+		    document.lembraSenha.identificacao.value = document.loginForm.identificacao.value;
+			if (document.lembraSenha.identificacao.value != null) {
+		    	if (document.lembraSenha.identificacao.value != "") {
+		    		$("#balaoLembrete").removeAttr('style').css("display","none");
+		            document.lembraSenha.submit();
+				} else {
+					$("#balaoLembrete").removeAttr('style').css("diplay","block");
+		            document.loginForm.identificacao.focus();
+			   }
+		    } else {
+		    	$("#balaoLembrete").removeAttr('style').css("diplay","block");
+				document.loginForm.identificacao.focus();
+		    }
+		}		
+		
+		function getKey(elemnto, event) {
+			var tecla = event.keyCode;
+			// Verifica se a tecla prescionada foi enter, se for tenta submeter o form
+			if (tecla == 13) {
+				filter(document.loginForm);
+			}
+		}
+		
+		function ShowPopup(URL){
+			  var popup = window.open(URL,'popup','directories=no,scrollbars=yes,status=yes,width=800,height=600');
+			  popup.focus();
+		}
+		
+		function logarViaCertificado(){
+			form=document.loginForm;
+			form.action='/sefaznet/loginCert.do?method=efetuarLoginCertificado';
+			form.submit();
+		}
+	</script>
+
+
+
+</body></html>

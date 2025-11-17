@@ -490,41 +490,7 @@ class MensagensUI {
                         </div>
                     </div>
 
-                    <!-- SEÇÃO ESPECÍFICA DA DIEF -->
-                    ${mensagem.competencia_dief || mensagem.status_dief || mensagem.chave_dief ? `
-                    <div class="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
-                        <h3 class="text-base font-semibold text-blue-900 mb-3 flex items-center">
-                            <i data-lucide="file-text" class="h-5 w-5 mr-2"></i>
-                            Dados do Processamento DIEF
-                        </h3>
-                        <div class="grid grid-cols-2 gap-3 text-sm">
-                            ${mensagem.protocolo_dief ? `
-                            <div>
-                                <span class="font-medium text-blue-700">Protocolo:</span>
-                                <span class="text-gray-900 ml-2">${this.escapeHtml(mensagem.protocolo_dief)}</span>
-                            </div>
-                            ` : ''}
-                            ${mensagem.competencia_dief ? `
-                            <div>
-                                <span class="font-medium text-blue-700">Período:</span>
-                                <span class="text-gray-900 ml-2 font-semibold">${this.formatCompetencia(mensagem.competencia_dief)}</span>
-                            </div>
-                            ` : ''}
-                            ${mensagem.status_dief ? `
-                            <div class="col-span-2">
-                                <span class="font-medium text-blue-700">Situação:</span>
-                                <span class="text-gray-900 ml-2 font-semibold">${this.escapeHtml(mensagem.status_dief)}</span>
-                            </div>
-                            ` : ''}
-                            ${mensagem.chave_dief ? `
-                            <div class="col-span-2">
-                                <span class="font-medium text-blue-700">Chave de Segurança:</span>
-                                <p class="text-xs text-gray-900 font-mono mt-1">${this.escapeHtml(mensagem.chave_dief)}</p>
-                            </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                    ` : ''}
+                    
 
                     <!-- CONTEÚDO DA MENSAGEM -->
                     <div>

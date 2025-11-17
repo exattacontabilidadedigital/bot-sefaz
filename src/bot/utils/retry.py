@@ -6,7 +6,7 @@ import functools
 import logging
 from typing import Callable, Type, Union, Tuple, Optional, List
 import time
-from bot_validators import (
+from src.bot.exceptions.base import (
     SEFAZBotException,
     TimeoutException,
     PageLoadException,
