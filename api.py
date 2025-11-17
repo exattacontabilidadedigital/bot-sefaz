@@ -1775,21 +1775,15 @@ except Exception as e:
 
 if __name__ == "__main__":
     import uvicorn
+    
+    # CRITICAL: Forçar WindowsSelectorEventLoopPolicy ANTES do Uvicorn criar o loop
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        print("✅ Configurado WindowsSelectorEventLoopPolicy para Playwright no Windows")
+    
     print("🚀 Iniciando SEFAZ Bot API...")
     print("📊 Interface web disponível em: http://localhost:8000")
     print("📚 Documentação da API em: http://localhost:8000/docs")
+    print("\n⏳ Aguardando requisições...")
     
-    # Aviso crítico para Windows
-    if sys.platform == 'win32' and sys.version_info >= (3, 13):
-        print("\n" + "="*70)
-        print("⚠️  AVISO IMPORTANTE - PYTHON 3.13 + WINDOWS")
-        print("="*70)
-        print("❌ A FILA AUTOMÁTICA NÃO FUNCIONA localmente com Python 3.13")
-        print("✅ Soluções:")
-        print("   1. Use Python 3.11 para desenvolvimento local")
-        print("   2. Ou use apenas no servidor Coolify (Linux)")
-        print("   3. Consultas manuais funcionam normalmente")
-        print("="*70 + "\n")
-    
-    print("⏳ Aguardando requisições...")
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
