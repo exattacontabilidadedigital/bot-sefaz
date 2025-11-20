@@ -247,3 +247,60 @@ export async function cancelarJob(jobId) {
     }
     return await response.json();
 }
+
+// Funções de Agendamento
+export async function criarAgendamento(data) {
+    const response = await fetch(`${API_BASE_URL}/agendamentos`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Erro ao criar agendamento');
+    }
+    return await response.json();
+}
+
+export async function fetchAgendamentos(limit = 50, offset = 0, ativoApenas = true, futuroApenas = true) {
+    const params = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+        ativo_apenas: ativoApenas.toString(),
+        futuro_apenas: futuroApenas.toString()
+    });
+    
+    const response = await fetch(`${API_BASE_URL}/agendamentos?${params}`);
+    if (!response.ok) {
+        throw new Error('Erro ao buscar agendamentos');
+    }
+    return await response.json();
+}
+
+export async function atualizarAgendamento(jobId, data) {
+    const response = await fetch(`${API_BASE_URL}/agendamentos/${jobId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Erro ao atualizar agendamento');
+    }
+    return await response.json();
+}
+
+export async function cancelarAgendamento(jobId) {
+    const response = await fetch(`${API_BASE_URL}/agendamentos/${jobId}`, {
+        method: 'DELETE'
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Erro ao cancelar agendamento');
+    }
+    return await response.json();
+}

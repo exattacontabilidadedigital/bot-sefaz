@@ -49,6 +49,25 @@ function updateFilaTable() {
                     ${utils.getJobStatusBadge(job.status)}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        job.tipo_execucao === 'agendada' 
+                            ? 'bg-purple-100 text-purple-800' 
+                            : 'bg-gray-100 text-gray-800'
+                    }">
+                        ${job.tipo_execucao === 'agendada' ? 'Agendada' : 'Imediata'}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-900">
+                        ${job.data_agendada ? utils.formatDateTime(job.data_agendada) : '-'}
+                    </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-500">
+                        ${job.recorrencia ? utils.formatRecorrencia(job.recorrencia) : '-'}
+                    </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
                     <div class="text-sm text-gray-500">${utils.formatDateTime(job.data_adicao)}</div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
@@ -66,6 +85,13 @@ function updateFilaTable() {
                                 title="Deletar">
                             <i data-lucide="trash-2" class="h-4 w-4"></i>
                         </button>
+                        ${job.tipo_execucao === 'agendada' ? `
+                            <button onclick="window.agendamentoUI.editarAgendamento(${job.id})" 
+                                    class="text-blue-600 hover:text-blue-900 mr-2"
+                                    title="Editar Agendamento">
+                                <i data-lucide="edit-3" class="h-4 w-4"></i>
+                            </button>
+                        ` : ''}
                     ` : ''}
                     ${job.status === 'running' ? `
                         <button onclick="window.filaUI.cancelJob(${job.id})" 

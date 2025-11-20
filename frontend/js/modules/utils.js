@@ -90,6 +90,21 @@ export function getJobStatusBadge(status) {
     }
 }
 
+export function formatRecorrencia(recorrencia) {
+    switch (recorrencia) {
+        case 'unica':
+            return 'Única';
+        case 'diaria':
+            return 'Diária';
+        case 'semanal':
+            return 'Semanal';
+        case 'mensal':
+            return 'Mensal';
+        default:
+            return recorrencia || '-';
+    }
+}
+
 export function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.className = `notification ${

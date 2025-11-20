@@ -343,6 +343,152 @@
                     </div>
                 </div>
 
+                <!-- Agendamento de Execução -->
+                <div class="card mb-6" id="agendamentoCard">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-medium text-gray-900">
+                                <i data-lucide="calendar-clock" class="h-5 w-5 mr-2 inline"></i>
+                                Agendar Execução
+                            </h3>
+                            <button id="toggleAgendamentoBtn" class="btn-secondary">
+                                <i data-lucide="plus" class="h-4 w-4 mr-2"></i>
+                                Criar Agendamento
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Formulário de Agendamento -->
+                    <div id="agendamentoForm" class="hidden px-6 py-4 border-b border-gray-200 bg-gray-50">
+                        <form id="scheduleForm">
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+                                <!-- Data e Hora -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        <i data-lucide="calendar" class="h-4 w-4 mr-1 inline"></i>
+                                        Data e Hora
+                                    </label>
+                                    <input type="datetime-local" 
+                                           id="dataAgendada" 
+                                           name="dataAgendada"
+                                           class="input-field" 
+                                           required
+                                           min="">
+                                </div>
+                                
+                                <!-- Recorrência -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        <i data-lucide="repeat" class="h-4 w-4 mr-1 inline"></i>
+                                        Recorrência
+                                    </label>
+                                    <select id="recorrencia" name="recorrencia" class="input-field">
+                                        <option value="unica">Execução Única</option>
+                                        <option value="diaria">Diária</option>
+                                        <option value="semanal">Semanal</option>
+                                        <option value="mensal">Mensal</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- Prioridade -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        <i data-lucide="arrow-up" class="h-4 w-4 mr-1 inline"></i>
+                                        Prioridade
+                                    </label>
+                                    <select id="prioridadeAgendamento" name="prioridade" class="input-field">
+                                        <option value="0">Normal (0)</option>
+                                        <option value="1">Alta (1)</option>
+                                        <option value="2">Crítica (2)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <!-- Seleção de Empresas -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i data-lucide="building" class="h-4 w-4 mr-1 inline"></i>
+                                    Empresas para Agendamento
+                                </label>
+                                <div class="flex items-center space-x-4 mb-3">
+                                    <button type="button" id="selectAllEmpresasBtn" class="btn-secondary text-sm">
+                                        <i data-lucide="check-square" class="h-4 w-4 mr-1"></i>
+                                        Selecionar Todas
+                                    </button>
+                                    <button type="button" id="clearSelectionBtn" class="btn-secondary text-sm">
+                                        <i data-lucide="square" class="h-4 w-4 mr-1"></i>
+                                        Limpar Seleção
+                                    </button>
+                                    <span id="selectedCountAgendamento" class="text-sm text-gray-600">0 empresas selecionadas</span>
+                                </div>
+                                <div id="empresasListAgendamento" class="max-h-48 overflow-y-auto border border-gray-300 rounded-md bg-white">
+                                    <!-- Lista será carregada dinamicamente -->
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-end space-x-3">
+                                <button type="button" id="cancelAgendamentoBtn" class="btn-secondary">
+                                    <i data-lucide="x" class="h-4 w-4 mr-2"></i>
+                                    Cancelar
+                                </button>
+                                <button type="submit" id="createAgendamentoBtn" class="btn-primary">
+                                    <i data-lucide="calendar-plus" class="h-4 w-4 mr-2"></i>
+                                    Criar Agendamento
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Lista de Agendamentos -->
+                    <div class="px-6 py-4">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="text-md font-medium text-gray-700">Próximos Agendamentos</h4>
+                            <div class="flex space-x-2">
+                                <button id="viewCalendarBtn" class="btn-secondary text-sm">
+                                    <i data-lucide="calendar" class="h-4 w-4 mr-1"></i>
+                                    Calendário
+                                </button>
+                                <button id="refreshAgendamentosBtn" class="btn-secondary text-sm">
+                                    <i data-lucide="refresh-cw" class="h-4 w-4 mr-1"></i>
+                                    Atualizar
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Visualização de Lista -->
+                        <div id="agendamentosList" class="space-y-2">
+                            <!-- Lista será carregada dinamicamente -->
+                        </div>
+                        
+                        <!-- Visualização de Calendário -->
+                        <div id="calendarioView" class="hidden">
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h5 class="text-lg font-medium text-gray-900" id="calendarioMesAno">-</h5>
+                                    <div class="flex space-x-2">
+                                        <button id="calendarioPrevBtn" class="btn-secondary text-sm">
+                                            <i data-lucide="chevron-left" class="h-4 w-4"></i>
+                                        </button>
+                                        <button id="calendarioNextBtn" class="btn-secondary text-sm">
+                                            <i data-lucide="chevron-right" class="h-4 w-4"></i>
+                                        </button>
+                                        <button id="calendarioHojeBtn" class="btn-secondary text-sm">Hoje</button>
+                                    </div>
+                                </div>
+                                <div id="calendarioGrid" class="grid grid-cols-7 gap-1">
+                                    <!-- Grid será gerado dinamicamente -->
+                                </div>
+                                <div class="mt-4 text-center">
+                                    <button id="backToListBtn" class="btn-secondary">
+                                        <i data-lucide="list" class="h-4 w-4 mr-2"></i>
+                                        Voltar à Lista
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Controles da Fila -->
                 <div class="card mb-6">
                     <div class="flex justify-between items-center">
@@ -382,6 +528,9 @@
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CNPJ</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IE</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agendado Para</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recorrência</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adicionado</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Processado</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Erro</th>

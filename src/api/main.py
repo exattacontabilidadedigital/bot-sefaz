@@ -128,6 +128,13 @@ class QueueJobRequest(BaseModel):
     empresa_ids: List[int]
     prioridade: Optional[int] = 0
 
+class AgendamentoRequest(BaseModel):
+    empresa_ids: List[int]
+    data_agendada: str  # ISO format: 2024-11-20T10:30:00
+    recorrencia: Optional[str] = 'unica'  # 'unica', 'diaria', 'semanal', 'mensal'
+    prioridade: Optional[int] = 0
+    ativo: Optional[bool] = True
+
 class QueueJobResponse(BaseModel):
     id: int
     empresa_id: int
@@ -141,6 +148,12 @@ class QueueJobResponse(BaseModel):
     tentativas: int
     max_tentativas: int
     erro: Optional[str] = None
+    # Campos de agendamento
+    tipo_execucao: Optional[str] = 'imediata'
+    data_agendada: Optional[str] = None
+    recorrencia: Optional[str] = None
+    ativo_agendamento: Optional[bool] = True
+    criado_por: Optional[str] = 'manual'
 
 class StatusResponse(BaseModel):
     status: str
@@ -1375,6 +1388,38 @@ async def stats_fila():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao obter estatísticas da fila: {str(e)}")
 
+async def criar_proximo_agendamento(job_id: int, empresa_id: int, recorrencia: str, 
+                                   data_atual: str, cursor):
+    """Cria o próximo agendamento para jobs recorrentes"""
+    from datetime import datetime, timedelta
+    
+    try:
+        data_base = datetime.fromisoformat(data_atual.replace('Z', '+00:00'))
+        
+        # Calcular próxima execução baseada na recorrência
+        if recorrencia == 'diaria':
+            proxima_data = data_base + timedelta(days=1)
+        elif recorrencia == 'semanal':
+            proxima_data = data_base + timedelta(weeks=1)
+        elif recorrencia == 'mensal':
+            # Aproximação: adicionar 30 dias
+            proxima_data = data_base + timedelta(days=30)
+        else:
+            return  # Recorrência desconhecida
+        
+        # Criar próximo agendamento
+        cursor.execute("""
+            INSERT INTO queue_jobs (
+                empresa_id, status, tipo_execucao, data_agendada, 
+                recorrencia, ativo_agendamento, criado_por
+            ) VALUES (?, 'pending', 'agendada', ?, ?, 1, 'recorrencia')
+        """, (empresa_id, proxima_data.isoformat(), recorrencia))
+        
+        print(f"🔄 Próximo agendamento criado para empresa {empresa_id}: {proxima_data}")
+        
+    except Exception as e:
+        print(f"⚠️ Erro ao criar próximo agendamento: {e}")
+
 async def processar_fila():
     """Processa a fila de jobs sequencialmente"""
     global processing_active
@@ -1405,12 +1450,20 @@ async def processar_fila():
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             
-            # Buscar próximo job pendente
+            # Buscar próximo job pendente considerando agendamento
+            current_time = datetime.now()
             cursor.execute("""
-                SELECT qj.id, qj.empresa_id, e.nome_empresa, e.cpf_socio, e.inscricao_estadual, e.senha
+                SELECT qj.id, qj.empresa_id, e.nome_empresa, e.cpf_socio, e.inscricao_estadual, e.senha,
+                       qj.tipo_execucao, qj.data_agendada, qj.recorrencia, qj.ativo_agendamento
                 FROM queue_jobs qj
                 JOIN empresas e ON qj.empresa_id = e.id
-                WHERE qj.status = 'pending' AND qj.tentativas < qj.max_tentativas
+                WHERE qj.status = 'pending' 
+                  AND qj.tentativas < qj.max_tentativas
+                  AND qj.ativo_agendamento = 1
+                  AND (
+                    qj.tipo_execucao = 'imediata' 
+                    OR (qj.tipo_execucao = 'agendada' AND datetime(qj.data_agendada) <= datetime('now'))
+                  )
                 ORDER BY qj.prioridade DESC, qj.data_adicao ASC
                 LIMIT 1
             """)
@@ -1423,8 +1476,18 @@ async def processar_fila():
                 await asyncio.sleep(5)
                 continue
             
-            job_id, empresa_id, empresa_nome, cpf_socio, inscricao_estadual, senha = job
+            (job_id, empresa_id, empresa_nome, cpf_socio, inscricao_estadual, 
+             senha, tipo_execucao, data_agendada, recorrencia, ativo_agendamento) = job
+             
             print(f"✅ Job encontrado: ID={job_id}, Empresa={empresa_nome} (ID={empresa_id})")
+            print(f"   📅 Tipo: {tipo_execucao}")
+            if tipo_execucao == 'agendada':
+                print(f"   🕒 Agendado para: {data_agendada}")
+                print(f"   🔄 Recorrência: {recorrencia}")
+            
+            # Se job tem recorrência, criar próximo agendamento antes de processar
+            if recorrencia and recorrencia != 'unica' and tipo_execucao == 'agendada':
+                await criar_proximo_agendamento(job_id, empresa_id, recorrencia, data_agendada, cursor)
             
             # Marcar como executando
             print(f"🔄 Marcando job {job_id} como 'running'...")
@@ -1657,6 +1720,237 @@ async def limpar_jobs_travados():
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao limpar jobs travados: {str(e)}")
+
+# ================================
+# ENDPOINTS PARA AGENDAMENTOS
+# ================================
+
+@app.post("/api/agendamentos", response_model=dict)
+async def criar_agendamento(agendamento: AgendamentoRequest):
+    """Cria agendamento para execução de empresas"""
+    try:
+        from datetime import datetime
+        
+        # Validar formato da data
+        try:
+            data_agendada = datetime.fromisoformat(agendamento.data_agendada.replace('Z', '+00:00'))
+            # Verificar se data não é no passado
+            if data_agendada <= datetime.now():
+                raise HTTPException(status_code=400, detail="Data agendada deve ser no futuro")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Formato de data inválido. Use ISO format: 2024-11-20T10:30:00")
+        
+        # Validar recorrência
+        recorrencias_validas = ['unica', 'diaria', 'semanal', 'mensal']
+        if agendamento.recorrencia not in recorrencias_validas:
+            raise HTTPException(status_code=400, detail=f"Recorrência deve ser: {', '.join(recorrencias_validas)}")
+        
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Verificar se empresas existem
+        placeholders = ','.join(['?' for _ in agendamento.empresa_ids])
+        cursor.execute(f"""
+            SELECT id, nome_empresa 
+            FROM empresas 
+            WHERE id IN ({placeholders}) AND ativo = 1
+        """, agendamento.empresa_ids)
+        
+        empresas_encontradas = cursor.fetchall()
+        if len(empresas_encontradas) != len(agendamento.empresa_ids):
+            empresas_ids_encontradas = [emp[0] for emp in empresas_encontradas]
+            empresas_nao_encontradas = [eid for eid in agendamento.empresa_ids if eid not in empresas_ids_encontradas]
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Empresas não encontradas ou inativas: {empresas_nao_encontradas}"
+            )
+        
+        # Criar jobs agendados
+        jobs_criados = []
+        for empresa_id in agendamento.empresa_ids:
+            cursor.execute("""
+                INSERT INTO queue_jobs (
+                    empresa_id, status, prioridade, tipo_execucao, 
+                    data_agendada, recorrencia, ativo_agendamento, criado_por
+                ) VALUES (?, 'pending', ?, 'agendada', ?, ?, ?, 'manual')
+            """, (
+                empresa_id, 
+                agendamento.prioridade,
+                agendamento.data_agendada,
+                agendamento.recorrencia,
+                agendamento.ativo
+            ))
+            jobs_criados.append(cursor.lastrowid)
+        
+        conn.commit()
+        conn.close()
+        
+        return {
+            "message": f"{len(jobs_criados)} agendamento(s) criado(s) com sucesso",
+            "jobs_criados": jobs_criados,
+            "data_agendada": agendamento.data_agendada,
+            "recorrencia": agendamento.recorrencia,
+            "empresas": len(agendamento.empresa_ids)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao criar agendamento: {str(e)}")
+
+@app.get("/api/agendamentos", response_model=List[QueueJobResponse])
+async def listar_agendamentos(
+    limit: int = 50,
+    offset: int = 0,
+    ativo_apenas: bool = True,
+    futuro_apenas: bool = True
+):
+    """Lista agendamentos criados"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Construir query com filtros
+        where_conditions = ["qj.tipo_execucao = 'agendada'"]
+        
+        if ativo_apenas:
+            where_conditions.append("qj.ativo_agendamento = 1")
+        
+        if futuro_apenas:
+            where_conditions.append("datetime(qj.data_agendada) > datetime('now')")
+        
+        where_clause = " AND ".join(where_conditions)
+        
+        cursor.execute(f"""
+            SELECT qj.*, e.nome_empresa, e.cnpj, e.inscricao_estadual
+            FROM queue_jobs qj
+            LEFT JOIN empresas e ON qj.empresa_id = e.id
+            WHERE {where_clause}
+            ORDER BY qj.data_agendada ASC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+        
+        jobs = cursor.fetchall()
+        conn.close()
+        
+        return [
+            QueueJobResponse(
+                id=job['id'],
+                empresa_id=job['empresa_id'],
+                nome_empresa=job['nome_empresa'],
+                cnpj=job['cnpj'],
+                inscricao_estadual=job['inscricao_estadual'],
+                status=job['status'],
+                prioridade=job['prioridade'],
+                data_adicao=job['data_adicao'],
+                data_processamento=job['data_processamento'],
+                tentativas=job['tentativas'],
+                max_tentativas=job['max_tentativas'],
+                erro=job['erro_detalhes'],
+                tipo_execucao=job['tipo_execucao'],
+                data_agendada=job['data_agendada'],
+                recorrencia=job['recorrencia'],
+                ativo_agendamento=bool(job['ativo_agendamento']),
+                criado_por=job['criado_por']
+            ) for job in jobs
+        ]
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao listar agendamentos: {str(e)}")
+
+@app.put("/api/agendamentos/{job_id}")
+async def atualizar_agendamento(job_id: int, agendamento: AgendamentoRequest):
+    """Atualiza um agendamento existente"""
+    try:
+        from datetime import datetime
+        
+        # Validar formato da data
+        try:
+            data_agendada = datetime.fromisoformat(agendamento.data_agendada.replace('Z', '+00:00'))
+            if data_agendada <= datetime.now():
+                raise HTTPException(status_code=400, detail="Data agendada deve ser no futuro")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Formato de data inválido")
+        
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Verificar se o agendamento existe e pode ser atualizado
+        cursor.execute("""
+            SELECT status, tipo_execucao 
+            FROM queue_jobs 
+            WHERE id = ?
+        """, (job_id,))
+        
+        job = cursor.fetchone()
+        if not job:
+            raise HTTPException(status_code=404, detail="Agendamento não encontrado")
+        
+        status, tipo_execucao = job
+        if tipo_execucao != 'agendada':
+            raise HTTPException(status_code=400, detail="Job não é um agendamento")
+        
+        if status != 'pending':
+            raise HTTPException(status_code=400, detail="Agendamento já foi processado ou está em execução")
+        
+        # Atualizar agendamento
+        cursor.execute("""
+            UPDATE queue_jobs 
+            SET data_agendada = ?, recorrencia = ?, ativo_agendamento = ?
+            WHERE id = ?
+        """, (agendamento.data_agendada, agendamento.recorrencia, agendamento.ativo, job_id))
+        
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Agendamento não encontrado")
+        
+        conn.commit()
+        conn.close()
+        
+        return {"message": "Agendamento atualizado com sucesso"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar agendamento: {str(e)}")
+
+@app.delete("/api/agendamentos/{job_id}")
+async def cancelar_agendamento(job_id: int):
+    """Cancela um agendamento"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Verificar se existe e pode ser cancelado
+        cursor.execute("""
+            SELECT status, tipo_execucao, recorrencia
+            FROM queue_jobs 
+            WHERE id = ?
+        """, (job_id,))
+        
+        job = cursor.fetchone()
+        if not job:
+            raise HTTPException(status_code=404, detail="Agendamento não encontrado")
+        
+        status, tipo_execucao, recorrencia = job
+        if tipo_execucao != 'agendada':
+            raise HTTPException(status_code=400, detail="Job não é um agendamento")
+        
+        if status == 'running':
+            raise HTTPException(status_code=400, detail="Agendamento está em execução e não pode ser cancelado")
+        
+        # Cancelar agendamento
+        cursor.execute("DELETE FROM queue_jobs WHERE id = ?", (job_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return {"message": "Agendamento cancelado com sucesso"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao cancelar agendamento: {str(e)}")
 
 # ================================
 # ENDPOINTS PARA MENSAGENS SEFAZ

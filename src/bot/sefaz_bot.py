@@ -308,6 +308,11 @@ class SEFAZBot:
                     tentativas INTEGER DEFAULT 0,
                     max_tentativas INTEGER DEFAULT 3,
                     erro_detalhes TEXT,
+                    data_agendada TIMESTAMP,
+                    tipo_execucao TEXT DEFAULT 'imediata',
+                    recorrencia TEXT,
+                    ativo_agendamento BOOLEAN DEFAULT 1,
+                    criado_por TEXT DEFAULT 'manual',
                     FOREIGN KEY (empresa_id) REFERENCES empresas(id)
                 )
             ''')

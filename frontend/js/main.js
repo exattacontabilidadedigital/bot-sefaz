@@ -4,6 +4,7 @@ import * as empresasUI from './modules/empresas.js';
 import * as filaUI from './modules/fila.js';
 import * as tabsUI from './modules/tabs.js';
 import { mensagensUI } from './modules/mensagens.js';
+import * as agendamentoUI from './modules/agendamento.js';
 import { initLucideIcons } from './modules/utils.js';
 
 // Expor módulos globalmente para uso em onclick handlers do HTML
@@ -12,6 +13,7 @@ window.empresasUI = empresasUI;
 window.filaUI = filaUI;
 window.tabsUI = tabsUI;
 window.mensagensUI = mensagensUI;
+window.agendamentoUI = agendamentoUI;
 
 // Inicializar aplicação quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', async () => {
@@ -26,6 +28,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Configurar polling da fila
     filaUI.setupFilaPolling();
+    
+    // Inicializar módulo de agendamento
+    agendamentoUI.initAgendamento();
     
     // Setup de event listeners para consultas
     setupConsultasListeners();
