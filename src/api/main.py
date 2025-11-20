@@ -44,6 +44,17 @@ async def chrome_devtools():
 # Configuração do banco de dados
 def get_database_path():
     """Retorna o caminho do banco baseado no ambiente"""
+    # Verificar se está em produção ou se DB_PATH está definido
+    db_path = os.getenv('DB_PATH')
+    
+    if db_path:
+        # Usar o caminho definido na variável de ambiente
+        db_dir = os.path.dirname(db_path)
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
+        print(f"📂 Usando DB_PATH do ambiente: {db_path}")
+        return db_path
+    
     # Verificar se está em produção
     if os.getenv('ENVIRONMENT') == 'production':
         # Garantir que o diretório existe
@@ -51,15 +62,8 @@ def get_database_path():
         os.makedirs(data_dir, exist_ok=True)
         return f'{data_dir}/sefaz_consulta.db'
     
-    # Usar variável de ambiente se definida
-    db_path = os.getenv('DB_PATH', 'sefaz_consulta.db')
-    
-    # Garantir que o diretório pai existe
-    db_dir = os.path.dirname(db_path)
-    if db_dir and db_dir != '.':
-        os.makedirs(db_dir, exist_ok=True)
-    
-    return db_path
+    # Padrão local
+    return 'sefaz_consulta.db'
 
 DB_PATH = get_database_path()
 DB_MENSAGENS = DB_PATH  # Mesmo banco para mensagens
@@ -509,37 +513,52 @@ async def atualizar_empresa(empresa_id: int, empresa: EmpresaRequest):
 @app.delete("/api/empresas/{empresa_id}")
 async def excluir_empresa(empresa_id: int):
     """Excluir empresa"""
+    conn = None
     try:
+        print(f"🗑️ Tentando excluir empresa ID: {empresa_id}")
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         # Verificar se empresa existe
         cursor.execute("SELECT id FROM empresas WHERE id = ?", (empresa_id,))
-        if not cursor.fetchone():
+        empresa = cursor.fetchone()
+        if not empresa:
+            print(f"❌ Empresa {empresa_id} não encontrada")
             raise HTTPException(status_code=404, detail="Empresa não encontrada")
+        
+        print(f"✅ Empresa {empresa_id} encontrada")
         
         # Verificar se existem consultas vinculadas
         cursor.execute("SELECT COUNT(*) FROM consultas WHERE empresa_id = ?", (empresa_id,))
         total_consultas = cursor.fetchone()[0]
+        print(f"📊 Total de consultas vinculadas: {total_consultas}")
         
         if total_consultas > 0:
             # Apenas desativar ao invés de excluir se houver consultas
             cursor.execute("UPDATE empresas SET ativo = 0 WHERE id = ?", (empresa_id,))
             message = "Empresa desativada (possui consultas vinculadas)"
+            print(f"⚠️ {message}")
         else:
             # Excluir permanentemente se não houver consultas
             cursor.execute("DELETE FROM empresas WHERE id = ?", (empresa_id,))
             message = "Empresa excluída com sucesso"
+            print(f"✅ {message}")
         
         conn.commit()
-        conn.close()
+        print(f"✅ Commit realizado com sucesso")
         
         return {"message": message, "id": empresa_id}
         
     except HTTPException:
         raise
     except Exception as e:
+        print(f"❌ Erro ao excluir empresa {empresa_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro ao excluir empresa: {str(e)}")
+    finally:
+        if conn:
+            conn.close()
 
 @app.get("/api/empresas/{empresa_id}/credenciais")
 async def obter_credenciais_empresa(empresa_id: int):
