@@ -29,6 +29,8 @@ window.visualModeUI = {
     getExtensionId: visualModeModule.getExtensionId,
     diagnose: visualModeModule.diagnoseExtension,
     checkExtension: visualModeModule.checkChromeExtension,
+    checkExtensionWithRetry: visualModeModule.checkChromeExtensionWithRetry,
+    autoDetectId: visualModeModule.autoDetectExtensionId,
     listExtensions: visualModeModule.listInstalledExtensions,
     reloadExtension: visualModeModule.reloadExtension,
     testCommunication: visualModeModule.testCommunication

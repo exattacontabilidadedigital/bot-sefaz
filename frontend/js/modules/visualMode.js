@@ -59,9 +59,9 @@ export async function checkChromeExtension() {
             
             // Tentar comunicação com timeout mais longo
             const timeout = setTimeout(() => {
-                console.log('⏰ Timeout na comunicação com extensão (5s)');
+                console.log('⏰ Timeout na comunicação com extensão (10s)');
                 resolve(false);
-            }, 5000);
+            }, 10000);
             
             chrome.runtime.sendMessage(EXTENSION_ID, { action: 'ping' }, (response) => {
                 clearTimeout(timeout);
@@ -90,6 +90,98 @@ export async function checkChromeExtension() {
             resolve(false);
         }
     });
+}
+
+// Função para verificar extensão com retry logic
+export async function checkChromeExtensionWithRetry(maxRetries = 3, delayMs = 1000) {
+    console.log(`🔄 Verificando extensão com retry (máximo ${maxRetries} tentativas)`);
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        console.log(`🎯 Tentativa ${attempt}/${maxRetries}...`);
+        
+        const result = await checkChromeExtension();
+        if (result) {
+            console.log(`✅ Extensão respondeu na tentativa ${attempt}`);
+            return true;
+        }
+        
+        // Se não é a última tentativa, aguarda antes da próxima
+        if (attempt < maxRetries) {
+            console.log(`⏳ Aguardando ${delayMs}ms antes da próxima tentativa...`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+    }
+    
+    console.log(`❌ Extensão não respondeu após ${maxRetries} tentativas`);
+    return false;
+}
+
+// Função para oferecer diálogo de retry
+function offerRetryDialog(message, onRetry) {
+    const confirmed = confirm(`${message}\n\n✅ Sim - Tentar novamente\n❌ Não - Desativar modo visual`);
+    
+    if (confirmed) {
+        onRetry();
+    } else {
+        // Usuário escolheu desativar
+        const visualModeCheckbox = document.getElementById('visualModeConsulta');
+        const visualModeToggle = document.getElementById('visual-mode-toggle');
+        
+        if (visualModeCheckbox) visualModeCheckbox.checked = false;
+        if (visualModeToggle) visualModeToggle.checked = false;
+        
+        visualModeEnabled = false;
+        console.log('👤 Usuário optou por desativar modo visual');
+    }
+}
+
+// Auto-detecção de ID da extensão
+export async function autoDetectExtensionId() {
+    console.log('🔍 Iniciando auto-detecção do ID da extensão...');
+    
+    // Lista de IDs conhecidos para testar
+    const knownIds = [
+        localStorage.getItem('chrome_extension_id'),
+        'gimjjdmndkikigfgmnaaejbnahdhailc', // ID conhecido atual
+        'your-extension-id-here', // Placeholder (vai falhar, mas está na lista)
+    ].filter(Boolean).filter(id => id !== 'your-extension-id-here');
+    
+    if (knownIds.length === 0) {
+        console.log('❌ Nenhum ID conhecido para testar');
+        return false;
+    }
+    
+    console.log('🧪 Testando IDs:', knownIds);
+    
+    for (const testId of knownIds) {
+        console.log(`🎯 Testando ID: ${testId}`);
+        
+        // Temporariamente definir o ID para teste
+        const originalId = EXTENSION_ID;
+        EXTENSION_ID = testId;
+        
+        try {
+            const result = await checkChromeExtension();
+            if (result) {
+                console.log(`✅ ID válido encontrado: ${testId}`);
+                // Salvar ID válido
+                localStorage.setItem('chrome_extension_id', testId);
+                return testId;
+            } else {
+                console.log(`❌ ID inválido: ${testId}`);
+            }
+        } catch (error) {
+            console.log(`💥 Erro testando ID ${testId}:`, error.message);
+        } finally {
+            // Restaurar ID original se teste falhou
+            if (EXTENSION_ID !== testId || !result) {
+                EXTENSION_ID = originalId;
+            }
+        }
+    }
+    
+    console.log('❌ Nenhum ID válido encontrado na auto-detecção');
+    return false;
 }
 
 // Atualizar status da extensão na interface
@@ -153,8 +245,22 @@ export function setupVisualModeEvents() {
             
             // Se tentou ativar mas extensão não está disponível
             if (e.target.checked && !extensionAvailable) {
-                e.target.checked = false;
-                utils.showNotification('Extensão Chrome não detectada. Instale a extensão para usar o modo visual.', 'warning');
+                // Manter marcado mas oferecer retry
+                e.target.checked = true;
+                offerRetryDialog('Extensão Chrome não detectada. Deseja tentar detectar novamente?', async () => {
+                    console.log('🔄 Usuário solicitou retry da detecção...');
+                    const detected = await checkChromeExtensionWithRetry();
+                    if (detected) {
+                        extensionAvailable = true;
+                        updateExtensionStatus();
+                        visualModeEnabled = true;
+                        utils.showNotification('✅ Extensão detectada! Modo visual ativado.', 'success');
+                    } else {
+                        e.target.checked = false;
+                        visualModeEnabled = false;
+                        utils.showNotification('❌ Extensão ainda não detectada. Verifique se está instalada e ativa.', 'error');
+                    }
+                });
             }
         });
     }
@@ -169,8 +275,22 @@ export function setupVisualModeEvents() {
             
             // Se tentou ativar mas extensão não está disponível
             if (e.target.checked && !extensionAvailable) {
-                e.target.checked = false;
-                utils.showNotification('Extensão Chrome não detectada. Instale a extensão para usar o modo visual.', 'warning');
+                // Manter marcado mas oferecer retry
+                e.target.checked = true;
+                offerRetryDialog('Extensão Chrome não detectada. Deseja tentar detectar novamente?', async () => {
+                    console.log('🔄 Usuário solicitou retry da detecção...');
+                    const detected = await checkChromeExtensionWithRetry();
+                    if (detected) {
+                        extensionAvailable = true;
+                        updateExtensionStatus();
+                        visualModeEnabled = true;
+                        utils.showNotification('✅ Extensão detectada! Modo visual ativado.', 'success');
+                    } else {
+                        e.target.checked = false;
+                        visualModeEnabled = false;
+                        utils.showNotification('❌ Extensão ainda não detectada. Verifique se está instalada e ativa.', 'error');
+                    }
+                });
             }
         });
     }
@@ -316,8 +436,8 @@ async function executarConsultaVisual(dados) {
             
             // Configurar timeout para a operação
             const timeout = setTimeout(() => {
-                reject(new Error('Timeout na execução da consulta (30 segundos). A extensão pode estar ocupada.'));
-            }, 30000);
+                reject(new Error('Timeout na execução da consulta (60 segundos). A extensão pode estar ocupada.'));
+            }, 60000);
             
             // Enviar dados para extensão Chrome
             chrome.runtime.sendMessage(EXTENSION_ID, {
@@ -360,21 +480,33 @@ export async function initVisualMode() {
     // Adicionar listener para evento de configuração
     document.addEventListener('show-extension-config', showExtensionConfigModal);
     
-    // Verificar extensão Chrome
-    extensionAvailable = await checkChromeExtension();
+    // Tentar auto-detectar ID se não estiver configurado
+    if (EXTENSION_ID === 'your-extension-id-here') {
+        console.log('🔍 ID não configurado, tentando auto-detecção...');
+        const detectedId = await autoDetectExtensionId();
+        if (detectedId) {
+            EXTENSION_ID = detectedId;
+            console.log('✅ ID auto-detectado:', EXTENSION_ID);
+        }
+    }
+    
+    // Verificar extensão Chrome com retry logic
+    console.log('🚀 Verificando extensão com retry logic...');
+    extensionAvailable = await checkChromeExtensionWithRetry();
     updateExtensionStatus();
     setupVisualModeEvents();
     
-    // Verificar extensão periodicamente (a cada 5 segundos)
+    // Verificar extensão periodicamente (reduzido para 30s para evitar sobrecarga)
     setInterval(async () => {
         const wasAvailable = extensionAvailable;
+        // Usar verificação simples para polling periódico
         extensionAvailable = await checkChromeExtension();
         
         if (wasAvailable !== extensionAvailable) {
             updateExtensionStatus();
             console.log('Status da extensão alterado:', extensionAvailable ? 'Disponível' : 'Indisponível');
         }
-    }, 5000);
+    }, 30000); // 30s em vez de 5s
     
     console.log('Modo visual inicializado. Extensão:', extensionAvailable ? 'Disponível' : 'Não detectada');
 }
