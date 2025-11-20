@@ -11,7 +11,14 @@ from datetime import datetime
 def migrate_database():
     """Adiciona campos de agendamento à tabela queue_jobs"""
     
-    db_path = os.getenv('DB_PATH', 'sefaz_consulta.db')
+    # Em produção, usar o diretório de dados persistente
+    if os.getenv('ENVIRONMENT') == 'production':
+        os.makedirs('/data', exist_ok=True)
+        db_path = '/data/sefaz_consulta.db'
+    else:
+        db_path = os.getenv('DB_PATH', 'sefaz_consulta.db')
+    
+    print(f"📂 Usando banco: {db_path}")
     
     try:
         conn = sqlite3.connect(db_path)
@@ -89,6 +96,12 @@ def migrate_database():
         print("   - recorrencia: TEXT ('unica', 'diaria', 'semanal', 'mensal')")
         print("   - ativo_agendamento: BOOLEAN (se agendamento está ativo)")
         print("   - criado_por: TEXT ('manual' ou 'recorrencia')")
+        print("\n🔒 Configuração de persistência:")
+        print(f"   - Banco localizado em: {db_path}")
+        if os.getenv('ENVIRONMENT') == 'production':
+            print("   - ✅ Modo produção: dados persistirão em volume Docker")
+        else:
+            print("   - ℹ️ Modo desenvolvimento: dados locais")
         
     except Exception as e:
         print(f"❌ Erro durante migração: {e}")

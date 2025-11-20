@@ -210,7 +210,7 @@ class BrowserManager:
 
 class SEFAZBot:
     def __init__(self, db_path: Optional[str] = None):
-        self.db_path = db_path or os.getenv('DB_PATH', 'sefaz_consulta.db')
+        self.db_path = db_path or self.get_database_path()
         self.sefaz_url = os.getenv('SEFAZ_URL', URL_SEFAZ_LOGIN)
         self.timeout = int(os.getenv('TIMEOUT', str(TIMEOUT_DEFAULT)))
         self.headless = os.getenv('HEADLESS', 'false').lower() == 'true'
@@ -233,6 +233,25 @@ class SEFAZBot:
         self.smtp_use_tls = os.getenv('SMTP_TLS', 'true').lower() == 'true'
 
         self.init_database()
+    
+    def get_database_path(self) -> str:
+        """Retorna o caminho do banco baseado no ambiente"""
+        # Verificar se está em produção
+        if os.getenv('ENVIRONMENT') == 'production':
+            # Garantir que o diretório existe
+            data_dir = '/data'
+            os.makedirs(data_dir, exist_ok=True)
+            return f'{data_dir}/sefaz_consulta.db'
+        
+        # Usar variável de ambiente se definida
+        db_path = os.getenv('DB_PATH', 'sefaz_consulta.db')
+        
+        # Garantir que o diretório pai existe
+        db_dir = os.path.dirname(db_path)
+        if db_dir and db_dir != '.':
+            os.makedirs(db_dir, exist_ok=True)
+        
+        return db_path
     
     def init_database(self) -> None:
         """Inicializa o banco de dados"""

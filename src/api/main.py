@@ -41,8 +41,29 @@ async def chrome_devtools():
     return {}
 
 # Configuração do banco de dados
-DB_PATH = os.getenv('DB_PATH', 'sefaz_consulta.db')
-DB_MENSAGENS = os.getenv('DB_MENSAGENS', 'sefaz_consulta.db')  # Mesmo banco para mensagens
+def get_database_path():
+    """Retorna o caminho do banco baseado no ambiente"""
+    # Verificar se está em produção
+    if os.getenv('ENVIRONMENT') == 'production':
+        # Garantir que o diretório existe
+        data_dir = '/data'
+        os.makedirs(data_dir, exist_ok=True)
+        return f'{data_dir}/sefaz_consulta.db'
+    
+    # Usar variável de ambiente se definida
+    db_path = os.getenv('DB_PATH', 'sefaz_consulta.db')
+    
+    # Garantir que o diretório pai existe
+    db_dir = os.path.dirname(db_path)
+    if db_dir and db_dir != '.':
+        os.makedirs(db_dir, exist_ok=True)
+    
+    return db_path
+
+DB_PATH = get_database_path()
+DB_MENSAGENS = DB_PATH  # Mesmo banco para mensagens
+
+print(f"📂 Banco de dados configurado em: {DB_PATH}")
 
 # Controle de processamento da fila
 processing_task = None
