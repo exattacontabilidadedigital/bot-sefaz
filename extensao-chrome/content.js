@@ -1,7 +1,7 @@
-// Content Script - Roda na página do SEFAZ-MA
-console.log('🔐 SEFAZ Auto Login - Extensão carregada');
-console.log('📍 URL da página:', window.location.href);
-console.log('🌐 Origin:', window.location.origin);
+// Content Script - Roda na pagina do SEFAZ-MA
+console.log('SEFAZ Auto Login - Extensao carregada');
+console.log('URL da pagina:', window.location.href);
+console.log('Origin:', window.location.origin);
 
 // Listener para mensagens da extensão (modo visual)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

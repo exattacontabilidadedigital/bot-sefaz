@@ -6,8 +6,7 @@
   "permissions": [
     "storage",
     "activeTab",
-    "tabs",
-    "management"
+    "tabs"
   ],
   "host_permissions": [
     "*://sefaznet.sefaz.ma.gov.br/*",
@@ -19,27 +18,19 @@
         "*://sefaznet.sefaz.ma.gov.br/*",
         "*://sefaz.ma.gov.br/*"
       ],
-      "js": ["content.js"],
+      "js": ["content_simple.js"],
       "run_at": "document_idle"
     }
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background_simple.js"
   },
   "externally_connectable": {
     "matches": [
       "http://localhost:*/*",
       "https://localhost:*/*",
-      "*://127.0.0.1:*/*",
-      "*://*.seudominio.com/*",
-      "*://*.ngrok.io/*",
-      "*://*.herokuapp.com/*"
+      "http://127.0.0.1:*/*",
+      "https://127.0.0.1:*/*"
     ]
-  },
-  "web_accessible_resources": [
-    {
-      "resources": ["*.js"],
-      "matches": ["<all_urls>"]
-    }
-  ]
+  }
 }
