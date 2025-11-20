@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEFAZ-MA Auto Login</title>
+    <style>
+        body {
+            width: 320px;
+            min-height: 200px;
+            margin: 0;
+            padding: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .header .version {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+        
+        .status {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .status-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .status-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .status-value {
+            font-weight: 500;
+            font-size: 12px;
+        }
+        
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-left: 8px;
+        }
+        
+        .status-indicator.active {
+            background: #4ade80;
+            box-shadow: 0 0 6px #4ade80;
+        }
+        
+        .status-indicator.inactive {
+            background: #f87171;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 8px;
+        }
+        
+        .btn-primary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .btn-primary:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .footer {
+            text-align: center;
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 16px;
+        }
+        
+        .loading {
+            text-align: center;
+            opacity: 0.8;
+        }
+        
+        .error {
+            background: rgba(248, 113, 113, 0.2);
+            border: 1px solid rgba(248, 113, 113, 0.4);
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔐 SEFAZ-MA Auto Login</h1>
+        <div class="version">Versão 1.2.0</div>
+    </div>
+    
+    <div id="status" class="status">
+        <div class="loading">⏳ Verificando status...</div>
+    </div>
+    
+    <button class="btn btn-primary" id="testBtn" style="display: none;">
+        🧪 Testar Comunicação
+    </button>
+    
+    <button class="btn btn-primary" id="reloadBtn" style="display: none;">
+        🔄 Recarregar Extensão
+    </button>
+    
+    <div class="footer">
+        <div>Consulta IE automatizada</div>
+        <div>com modo visual robusto</div>
+    </div>
+    
+    <script>
+        // Elementos DOM
+        const statusDiv = document.getElementById('status');
+        const testBtn = document.getElementById('testBtn');
+        const reloadBtn = document.getElementById('reloadBtn');
+        
+        // Estado
+        let extensionStatus = null;
+        
+        // Inicializar popup
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkExtensionStatus();
+            setupEventListeners();
+        });
+        
+        // Verificar status da extensão
+        async function checkExtensionStatus() {
+            try {
+                console.log('🔍 Verificando status da extensão...');
+                
+                // Tentar comunicação interna
+                const response = await chrome.runtime.sendMessage({ type: 'CHECK_EXTENSION' });
+                
+                if (response && response.success) {
+                    extensionStatus = response;
+                    displayStatus(response);
+                } else {
+                    throw new Error('Resposta inválida do background script');
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro ao verificar status:', error);
+                displayError('Erro de comunicação com background script');
+            }
+        }
+        
+        // Exibir status
+        function displayStatus(status) {
+            const uptime = status.uptime ? formatUptime(status.uptime) : 'N/A';
+            const isActive = status.active && status.installed;
+            
+            statusDiv.innerHTML = `
+                <div class="status-item">
+                    <span class="status-label">Status</span>
+                    <div style="display: flex; align-items: center;">
+                        <span class="status-value">${isActive ? 'Ativo' : 'Inativo'}</span>
+                        <div class="status-indicator ${isActive ? 'active' : 'inactive'}"></div>
+                    </div>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Versão</span>
+                    <span class="status-value">${status.version || '1.2.0'}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Tempo Ativo</span>
+                    <span class="status-value">${uptime}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Conexões</span>
+                    <span class="status-value">${status.connections || 0}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">ID</span>
+                    <span class="status-value">${status.id ? status.id.substring(0, 8) + '...' : 'N/A'}</span>
+                </div>
+            `;
+            
+            // Mostrar botões
+            testBtn.style.display = 'block';
+            reloadBtn.style.display = 'block';
+        }
+        
+        // Exibir erro
+        function displayError(message) {
+            statusDiv.innerHTML = `
+                <div class="error">❌ ${message}</div>
+                <div class="status-item">
+                    <span class="status-label">Status</span>
+                    <div style="display: flex; align-items: center;">
+                        <span class="status-value">Erro</span>
+                        <div class="status-indicator inactive"></div>
+                    </div>
+                </div>
+            `;
+            
+            reloadBtn.style.display = 'block';
+        }
+        
+        // Configurar event listeners
+        function setupEventListeners() {
+            testBtn.addEventListener('click', async () => {
+                testBtn.textContent = '⏳ Testando...';
+                testBtn.disabled = true;
+                
+                try {
+                    // Testar comunicação externa (simulando frontend)
+                    const testResponse = await chrome.runtime.sendMessage({ type: 'GET_STATE' });
+                    
+                    if (testResponse && testResponse.success) {
+                        alert('✅ Comunicação funcionando!\n\nDetalhes:\n' + 
+                              JSON.stringify(testResponse.state, null, 2));
+                    } else {
+                        alert('❌ Falha na comunicação interna');
+                    }
+                } catch (error) {
+                    alert('❌ Erro no teste: ' + error.message);
+                } finally {
+                    testBtn.textContent = '🧪 Testar Comunicação';
+                    testBtn.disabled = false;
+                }
+            });
+            
+            reloadBtn.addEventListener('click', () => {
+                chrome.runtime.reload();
+            });
+        }
+        
+        // Formatar tempo ativo
+        function formatUptime(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            
+            if (hours > 0) {
+                return `${hours}h ${minutes % 60}m`;
+            } else if (minutes > 0) {
+                return `${minutes}m ${seconds % 60}s`;
+            } else {
+                return `${seconds}s`;
+            }
+        }
+    </script>
+</body>
+</html>

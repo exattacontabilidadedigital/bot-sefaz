@@ -1,314 +1,429 @@
-// Content Script - Roda na página do SEFAZ-MA
-console.log('🔐 SEFAZ Auto Login - Extensão carregada');
-console.log('📍 URL da página:', window.location.href);
+// Content Script Enhanced - v1.2.0
+console.log('🔐 SEFAZ Auto Login v1.2.0 - Content Script carregado');
+console.log('📍 URL:', window.location.href);
 console.log('🌐 Origin:', window.location.origin);
+console.log('⏰ Timestamp:', new Date().toISOString());
 
-// Listener para mensagens da extensão (modo visual)
+// Estado do content script
+let contentState = {
+    scriptReady: true,
+    currentOperation: null,
+    lastMessage: null,
+    operationStartTime: null
+};
+
+// Listener robusto para mensagens da extensão
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    console.log('📨 Mensagem da extensão recebida:', request);
-    console.log('📤 Sender:', sender);
+    const timestamp = new Date().toISOString();
+    const connectionId = request.connectionId || 'unknown';
     
-    if (request.action === 'executarConsulta') {
-        console.log('🎯 Ação executarConsulta detectada, iniciando handleConsultaVisual...');
-        
-        // Executar de forma assíncrona
-        handleConsultaVisual(request.dados)
-            .then(result => {
-                console.log('✅ handleConsultaVisual concluído com sucesso:', result);
-                sendResponse({
-                    success: true,
-                    data: result
-                });
-            })
-            .catch(error => {
-                console.error('❌ handleConsultaVisual falhou:', error);
-                sendResponse({
-                    success: false,
-                    error: error.message || 'Erro desconhecido no content script'
-                });
-            });
-        
-        return true; // Manter canal aberto para resposta assíncrona
+    console.log(`📨 [${connectionId}] Mensagem recebida [${timestamp}]:`, {
+        action: request.action,
+        hasData: !!request.dados,
+        sender: sender?.id
+    });
+    
+    // Validar mensagem
+    if (!request.action) {
+        console.error(`❌ [${connectionId}] Mensagem sem ação`);
+        sendResponse({ success: false, error: 'Mensagem inválida: sem ação' });
+        return false;
     }
     
-    console.log('❓ Ação não reconhecida:', request.action);
-    return false;
+    contentState.lastMessage = request;
+    contentState.operationStartTime = Date.now();
+    
+    switch (request.action) {
+        case 'executarConsulta':
+            console.log(`🎯 [${connectionId}] Executando consulta visual...`);
+            contentState.currentOperation = 'consulta';
+            
+            handleConsultaVisual(request.dados, connectionId)
+                .then(result => {
+                    console.log(`✅ [${connectionId}] Consulta concluída:`, result);
+                    sendResponse({
+                        success: true,
+                        data: result,
+                        timestamp: new Date().toISOString(),
+                        connectionId,
+                        duration: Date.now() - contentState.operationStartTime
+                    });
+                })
+                .catch(error => {
+                    console.error(`❌ [${connectionId}] Erro na consulta:`, error);
+                    sendResponse({
+                        success: false,
+                        error: error.message,
+                        timestamp: new Date().toISOString(),
+                        connectionId,
+                        duration: Date.now() - contentState.operationStartTime
+                    });
+                })
+                .finally(() => {
+                    contentState.currentOperation = null;
+                    contentState.operationStartTime = null;
+                });
+            
+            return true; // Resposta assíncrona
+            
+        case 'getStatus':
+            console.log(`📊 [${connectionId}] Status do content script`);
+            sendResponse({
+                success: true,
+                data: {
+                    state: contentState,
+                    url: window.location.href,
+                    ready: contentState.scriptReady,
+                    timestamp: new Date().toISOString()
+                },
+                connectionId
+            });
+            return false; // Resposta síncrona
+            
+        default:
+            console.warn(`❓ [${connectionId}] Ação desconhecida:`, request.action);
+            sendResponse({
+                success: false,
+                error: 'Ação não reconhecida: ' + request.action,
+                connectionId
+            });
+            return false;
+    }
 });
 
-// Executar consulta no modo visual
-async function handleConsultaVisual(dados) {
+// Função principal para consulta visual
+async function handleConsultaVisual(dados, connectionId) {
     try {
-        console.log('🎯 Iniciando consulta visual:', dados);
+        console.log(`🎯 [${connectionId}] Iniciando consulta visual com dados:`, {
+            cpf: dados.cpf_socio ? dados.cpf_socio.substring(0, 3) + '***' : 'N/A',
+            ie: dados.inscricao_estadual || 'N/A',
+            url: window.location.href
+        });
         
-        // Verificar se estamos na página correta
-        if (!window.location.href.includes('sefaz.ma.gov.br')) {
-            throw new Error('Página SEFAZ não detectada. URL: ' + window.location.href);
+        // Validar página
+        await validatePage();
+        console.log(`✅ [${connectionId}] Página validada`);
+        
+        // Aguardar página estar pronta
+        await waitForPageReady();
+        console.log(`✅ [${connectionId}] Página pronta`);
+        
+        // Executar login se necessário
+        if (needsLogin()) {
+            const loginResult = await executeLogin(dados, connectionId);
+            console.log(`✅ [${connectionId}] Login executado:`, loginResult);
+            
+            // Aguardar redirecionamento
+            await waitForLoginRedirect(connectionId);
+            console.log(`✅ [${connectionId}] Redirecionamento concluído`);
         }
         
-        // Aguardar página carregar completamente
-        await waitForPageReady();
-        console.log('✅ Página carregada, iniciando login...');
-        
-        // Executar login
-        const loginResult = await executeLogin(dados);
-        console.log('✅ Login executado:', loginResult);
-        
-        // Aguardar redirecionamento e navegar para consulta
-        await waitForLoginRedirect();
-        console.log('✅ Redirecionamento concluído, executando consulta...');
+        // Navegar para consulta se necessário
+        if (!window.location.href.includes('consultas/pj')) {
+            await navigateToConsulta(connectionId);
+            console.log(`✅ [${connectionId}] Navegação para consulta concluída`);
+        }
         
         // Executar consulta específica
-        const consultaResult = await executeConsulta(dados);
-        console.log('✅ Consulta executada:', consultaResult);
+        const consultaResult = await executeConsulta(dados, connectionId);
+        console.log(`✅ [${connectionId}] Consulta executada:`, consultaResult);
         
         return {
-            login: loginResult,
-            consulta: consultaResult,
+            success: true,
+            data: consultaResult,
+            url: window.location.href,
             timestamp: new Date().toISOString(),
-            url: window.location.href
+            connectionId,
+            steps: ['validation', 'login', 'navigation', 'query', 'extraction']
         };
         
     } catch (error) {
-        console.error('❌ Erro na consulta visual:', error);
-        throw error;
+        console.error(`❌ [${connectionId}] Erro na consulta visual:`, error);
+        throw new Error(`Consulta falhou: ${error.message}`);
     }
 }
 
-// Aguardar página estar pronta
+// Validar se estamos na página correta
+async function validatePage() {
+    const allowedDomains = ['sefaz.ma.gov.br', 'sefaznet.sefaz.ma.gov.br'];
+    const currentDomain = window.location.hostname;
+    
+    if (!allowedDomains.some(domain => currentDomain.includes(domain))) {
+        throw new Error(`Página inválida. Domínio: ${currentDomain}. Esperado: ${allowedDomains.join(' ou ')}`);
+    }
+    
+    return true;
+}
+
+// Aguardar página estar completamente pronta
 function waitForPageReady() {
     return new Promise((resolve) => {
         if (document.readyState === 'complete') {
-            setTimeout(resolve, 1000); // Aguardar mais um pouco
+            setTimeout(resolve, 1500); // Aguardar scripts carregarem
         } else {
             window.addEventListener('load', () => {
-                setTimeout(resolve, 1000);
+                setTimeout(resolve, 1500);
             });
         }
     });
 }
 
-// Executar login automático
-async function executeLogin(dados) {
-    console.log('🔐 Executando login...');
+// Verificar se precisa fazer login
+function needsLogin() {
+    const loginFields = document.querySelector('input[name="identificacao"], input[name="cpf"]');
+    const loggedInIndicators = document.querySelector('#principal, .menu-principal, .user-menu, .logout');
     
-    // Preencher campo CPF
-    const campoUsuario = document.querySelector('input[name="identificacao"]');
-    if (campoUsuario) {
-        campoUsuario.value = dados.cpf_socio;
-        campoUsuario.dispatchEvent(new Event('input', { bubbles: true }));
-        console.log('✅ CPF preenchido');
-    } else {
-        throw new Error('Campo de usuário não encontrado');
+    console.log('🔍 Verificando necessidade de login:', {
+        hasLoginFields: !!loginFields,
+        hasLoggedInIndicators: !!loggedInIndicators,
+        url: window.location.href
+    });
+    
+    return !!loginFields && !loggedInIndicators;
+}
+
+// Executar login automático
+async function executeLogin(dados, connectionId) {
+    console.log(`🔐 [${connectionId}] Executando login...`);
+    
+    if (!dados.cpf_socio || !dados.senha) {
+        throw new Error('Dados de login incompletos (CPF/senha)');
     }
     
-    // Preencher campo Senha
-    const campoSenha = document.querySelector('input[name="senha"]');
-    if (campoSenha) {
-        campoSenha.value = dados.senha;
-        campoSenha.dispatchEvent(new Event('input', { bubbles: true }));
-        console.log('✅ Senha preenchida');
-    } else {
+    // Aguardar campos aparecerem
+    await waitForElement('input[name="identificacao"], input[name="cpf"]', 10000);
+    
+    // Preencher CPF
+    const campoCpf = document.querySelector('input[name="identificacao"], input[name="cpf"]');
+    if (!campoCpf) {
+        throw new Error('Campo de CPF não encontrado');
+    }
+    
+    campoCpf.value = dados.cpf_socio;
+    campoCpf.dispatchEvent(new Event('input', { bubbles: true }));
+    campoCpf.dispatchEvent(new Event('change', { bubbles: true }));
+    console.log(`✅ [${connectionId}] CPF preenchido`);
+    
+    // Aguardar e preencher senha
+    await sleep(300);
+    const campoSenha = document.querySelector('input[name="senha"], input[type="password"]');
+    if (!campoSenha) {
         throw new Error('Campo de senha não encontrado');
     }
     
-    // Aguardar um pouco antes de clicar
-    await sleep(500);
+    campoSenha.value = dados.senha;
+    campoSenha.dispatchEvent(new Event('input', { bubbles: true }));
+    campoSenha.dispatchEvent(new Event('change', { bubbles: true }));
+    console.log(`✅ [${connectionId}] Senha preenchida`);
     
-    // Clicar no botão Entrar
-    const botaoEntrar = document.querySelector('button[type="submit"]');
-    if (botaoEntrar) {
-        console.log('✅ Clicando no botão Entrar...');
-        botaoEntrar.click();
-    } else {
-        throw new Error('Botão Entrar não encontrado');
+    // Aguardar e clicar no botão
+    await sleep(500);
+    const botaoLogin = document.querySelector('button[type="submit"], input[type="submit"], button:contains("Entrar")') ||
+                      document.querySelector('button, input[value*="Entrar"]');
+    
+    if (!botaoLogin) {
+        throw new Error('Botão de login não encontrado');
     }
     
-    return { status: 'login_initiated' };
+    console.log(`🚀 [${connectionId}] Clicando no botão de login...`);
+    botaoLogin.click();
+    
+    return { status: 'login_initiated', timestamp: new Date().toISOString() };
 }
 
 // Aguardar redirecionamento após login
-async function waitForLoginRedirect() {
-    console.log('⏳ Aguardando redirecionamento após login...');
+async function waitForLoginRedirect(connectionId) {
+    console.log(`⏳ [${connectionId}] Aguardando redirecionamento...`);
     
     return new Promise((resolve, reject) => {
-        let tentativas = 0;
-        const maxTentativas = 40; // 20 segundos
+        let attempts = 0;
+        const maxAttempts = 60; // 30 segundos
         
         const interval = setInterval(() => {
-            tentativas++;
+            attempts++;
             
-            // Verificar se formulário de login sumiu
-            const formularioLogin = document.querySelector('input[name="identificacao"]');
-            const paginaPrincipal = document.querySelector('#principal, .menu-principal, #menu');
+            // Verificar se login foi concluído
+            const loginForm = document.querySelector('input[name="identificacao"], input[name="cpf"]');
+            const loggedIn = document.querySelector('#principal, .menu-principal, .user-menu') ||
+                           !window.location.href.includes('login') ||
+                           window.location.href.includes('portal') ||
+                           window.location.href.includes('cidadao');
             
-            if (!formularioLogin || paginaPrincipal) {
+            if (!loginForm || loggedIn) {
                 clearInterval(interval);
-                console.log('✅ Login completado, redirecionamento detectado');
-                setTimeout(resolve, 1000); // Aguardar mais um pouco
+                console.log(`✅ [${connectionId}] Login detectado, redirecionamento concluído`);
+                setTimeout(resolve, 2000); // Aguardar estabilizar
                 return;
             }
             
-            if (tentativas >= maxTentativas) {
+            // Verificar erros de login
+            const errorElement = document.querySelector('.error, .alert, .msg-erro, .erro');
+            if (errorElement && errorElement.textContent.toLowerCase().includes('erro')) {
                 clearInterval(interval);
-                reject(new Error('Timeout aguardando redirecionamento do login'));
+                reject(new Error(`Erro de login detectado: ${errorElement.textContent}`));
+                return;
+            }
+            
+            if (attempts >= maxAttempts) {
+                clearInterval(interval);
+                reject(new Error('Timeout aguardando redirecionamento do login (30s)'));
             }
         }, 500);
     });
 }
 
+// Navegar para página de consultas
+async function navigateToConsulta(connectionId) {
+    console.log(`🧭 [${connectionId}] Navegando para consultas PJ...`);
+    
+    const consultaUrl = 'https://sefaz.ma.gov.br/portal/cidadao/consultas/pj';
+    window.location.href = consultaUrl;
+    
+    // Aguardar nova página carregar
+    await waitForPageReady();
+    
+    return { navigated: true, url: window.location.href };
+}
+
 // Executar consulta específica
-async function executeConsulta(dados) {
-    console.log('📋 Executando consulta específica...');
+async function executeConsulta(dados, connectionId) {
+    console.log(`📋 [${connectionId}] Executando consulta específica...`);
     
-    // Navegar para página de consultas PJ se necessário
-    if (!window.location.href.includes('consultas/pj')) {
-        console.log('🧭 Navegando para consultas PJ...');
-        window.location.href = 'https://sefaz.ma.gov.br/portal/cidadao/consultas/pj';
-        await waitForPageReady();
-    }
+    // Aguardar formulário aparecer
+    await waitForElement('form, input[type="text"]', 15000);
+    console.log(`✅ [${connectionId}] Formulário de consulta encontrado`);
     
-    // Aguardar formulário de consulta carregar
-    await waitForConsultaForm();
-    
-    // Preencher dados da consulta
-    await fillConsultaForm(dados);
+    // Preencher formulário
+    await fillConsultaForm(dados, connectionId);
     
     // Submeter consulta
-    await submitConsulta();
+    await submitConsulta(connectionId);
     
-    // Aguardar e capturar resultados
-    const resultado = await waitForConsultaResults();
+    // Aguardar e extrair resultados
+    const resultado = await waitForResults(connectionId);
     
     return resultado;
 }
 
-// Aguardar formulário de consulta aparecer
-function waitForConsultaForm() {
-    return new Promise((resolve, reject) => {
-        let tentativas = 0;
-        const maxTentativas = 20;
-        
-        const interval = setInterval(() => {
-            tentativas++;
-            
-            const form = document.querySelector('form') || 
-                         document.querySelector('#consultaForm') ||
-                         document.querySelector('input[type="text"]');
-            
-            if (form) {
-                clearInterval(interval);
-                console.log('✅ Formulário de consulta encontrado');
-                resolve();
-                return;
-            }
-            
-            if (tentativas >= maxTentativas) {
-                clearInterval(interval);
-                reject(new Error('Formulário de consulta não encontrado'));
-            }
-        }, 500);
-    });
-}
-
 // Preencher formulário de consulta
-async function fillConsultaForm(dados) {
-    console.log('✏️ Preenchendo formulário de consulta...');
+async function fillConsultaForm(dados, connectionId) {
+    console.log(`✏️ [${connectionId}] Preenchendo formulário...`);
     
-    // Procurar e preencher campo CPF
+    // Buscar campo de CPF/CNPJ
     const campoCpf = document.querySelector('input[name*="cpf"], input[id*="cpf"], input[placeholder*="CPF"]') ||
+                     document.querySelector('input[name*="cnpj"], input[id*="cnpj"], input[placeholder*="CNPJ"]') ||
                      document.querySelector('input[type="text"]:first-of-type');
     
-    if (campoCpf) {
+    if (campoCpf && dados.cpf_socio) {
         campoCpf.value = dados.cpf_socio;
         campoCpf.dispatchEvent(new Event('input', { bubbles: true }));
         campoCpf.dispatchEvent(new Event('change', { bubbles: true }));
-        console.log('✅ CPF preenchido no formulário de consulta');
+        console.log(`✅ [${connectionId}] CPF preenchido no formulário`);
+        await sleep(300);
     }
     
-    // Preencher IE se fornecida
+    // Preencher IE se disponível
     if (dados.inscricao_estadual) {
-        const campoIe = document.querySelector('input[name*="ie"], input[id*="inscricao"], input[placeholder*="IE"]');
+        const campoIe = document.querySelector('input[name*="ie"], input[id*="inscricao"], input[placeholder*="IE"]') ||
+                       document.querySelector('input[name*="estadual"]');
+        
         if (campoIe) {
             campoIe.value = dados.inscricao_estadual;
             campoIe.dispatchEvent(new Event('input', { bubbles: true }));
             campoIe.dispatchEvent(new Event('change', { bubbles: true }));
-            console.log('✅ IE preenchida no formulário de consulta');
+            console.log(`✅ [${connectionId}] IE preenchida`);
+            await sleep(300);
         }
     }
     
-    await sleep(500); // Aguardar processamento
+    return true;
 }
 
 // Submeter consulta
-async function submitConsulta() {
-    console.log('🚀 Submetendo consulta...');
+async function submitConsulta(connectionId) {
+    console.log(`🚀 [${connectionId}] Submetendo consulta...`);
     
-    const botaoSubmit = document.querySelector('button[type="submit"], input[type="submit"], button:contains("Consultar")') ||
-                       document.querySelector('button, input[type="button"]');
+    const submitButton = document.querySelector('button[type="submit"], input[type="submit"]') ||
+                        document.querySelector('button:contains("Consultar"), button:contains("Buscar")') ||
+                        document.querySelector('button, input[value*="Consultar"]');
     
-    if (botaoSubmit) {
-        botaoSubmit.click();
-        console.log('✅ Consulta submetida');
-    } else {
-        throw new Error('Botão de submit não encontrado');
+    if (!submitButton) {
+        throw new Error('Botão de consulta não encontrado');
     }
+    
+    submitButton.click();
+    await sleep(1000);
+    
+    return { submitted: true, timestamp: new Date().toISOString() };
 }
 
-// Aguardar e capturar resultados
-async function waitForConsultaResults() {
-    console.log('⏳ Aguardando resultados da consulta...');
+// Aguardar e extrair resultados
+async function waitForResults(connectionId) {
+    console.log(`⏳ [${connectionId}] Aguardando resultados...`);
     
     return new Promise((resolve, reject) => {
-        let tentativas = 0;
-        const maxTentativas = 60; // 30 segundos
+        let attempts = 0;
+        const maxAttempts = 120; // 60 segundos
         
         const interval = setInterval(() => {
-            tentativas++;
+            attempts++;
             
-            // Procurar por elementos que indicam resultado
-            const resultados = document.querySelector('.resultado, .resultados, table, .dados-empresa') ||
-                             document.querySelector('*:contains("ATIVO"), *:contains("SUSPENSO"), *:contains("BAIXADO")');
+            // Procurar indicadores de resultado
+            const resultElements = document.querySelectorAll('table, .resultado, .dados-empresa, .info-empresa');
+            const statusElements = document.querySelectorAll('*');
             
-            // Verificar por mensagens de erro
-            const erro = document.querySelector('.erro, .error, .alert-danger') ||
-                        document.querySelector('*:contains("erro"), *:contains("não encontrado")');
+            // Procurar por texto de status
+            let statusFound = null;
+            for (let elem of statusElements) {
+                const text = elem.textContent || '';
+                if (text.match(/(ATIVO|SUSPENSO|BAIXADO|CANCELADO|IRREGULAR)/i)) {
+                    statusFound = text.match(/(ATIVO|SUSPENSO|BAIXADO|CANCELADO|IRREGULAR)/i)[0];
+                    break;
+                }
+            }
             
-            if (resultados) {
+            // Verificar erros
+            const errorElements = document.querySelectorAll('.error, .erro, .alert-danger, .msg-erro');
+            for (let errorElem of errorElements) {
+                if (errorElem.textContent.toLowerCase().includes('não encontrado') ||
+                    errorElem.textContent.toLowerCase().includes('erro')) {
+                    clearInterval(interval);
+                    reject(new Error(`Erro na consulta: ${errorElem.textContent}`));
+                    return;
+                }
+            }
+            
+            // Se encontrou resultados ou status
+            if (resultElements.length > 0 || statusFound) {
                 clearInterval(interval);
-                console.log('✅ Resultados encontrados');
+                console.log(`✅ [${connectionId}] Resultados encontrados`);
                 
-                // Extrair dados dos resultados
-                const dadosExtraidos = extractResultData();
-                resolve(dadosExtraidos);
+                const resultado = extractResultData(connectionId);
+                resolve(resultado);
                 return;
             }
             
-            if (erro) {
+            if (attempts >= maxAttempts) {
                 clearInterval(interval);
-                const mensagemErro = erro.textContent || 'Erro na consulta';
-                reject(new Error(`Erro na consulta: ${mensagemErro}`));
-                return;
-            }
-            
-            if (tentativas >= maxTentativas) {
-                clearInterval(interval);
-                reject(new Error('Timeout aguardando resultados da consulta'));
+                reject(new Error('Timeout aguardando resultados da consulta (60s)'));
             }
         }, 500);
     });
 }
 
 // Extrair dados dos resultados
-function extractResultData() {
-    console.log('📊 Extraindo dados dos resultados...');
+function extractResultData(connectionId) {
+    console.log(`📊 [${connectionId}] Extraindo dados dos resultados...`);
     
     const resultado = {
         timestamp: new Date().toISOString(),
         url: window.location.href,
-        dados_extraidos: {}
+        dados_extraidos: {},
+        status_empresa: null,
+        tabelas: []
     };
     
-    // Tentar extrair dados de tabelas
+    // Extrair de tabelas
     const tabelas = document.querySelectorAll('table');
     tabelas.forEach((tabela, index) => {
         const dadosTabela = {};
@@ -326,26 +441,71 @@ function extractResultData() {
         });
         
         if (Object.keys(dadosTabela).length > 0) {
-            resultado.dados_extraidos[`tabela_${index + 1}`] = dadosTabela;
+            resultado.tabelas.push(dadosTabela);
         }
     });
     
-    // Tentar extrair texto relevante
-    const textoRelevante = document.body.textContent.match(/(ATIVO|SUSPENSO|BAIXADO|CANCELADO)/gi);
-    if (textoRelevante) {
-        resultado.status_encontrado = textoRelevante[0];
+    // Extrair status da empresa
+    const bodyText = document.body.textContent;
+    const statusMatch = bodyText.match(/(ATIVO|SUSPENSO|BAIXADO|CANCELADO|IRREGULAR)/i);
+    if (statusMatch) {
+        resultado.status_empresa = statusMatch[1];
     }
     
-    console.log('📋 Dados extraídos:', resultado);
+    // Extrair outros dados relevantes
+    const elementos = document.querySelectorAll('*');
+    elementos.forEach(elem => {
+        const text = elem.textContent || '';
+        if (text.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/)) { // CNPJ
+            resultado.dados_extraidos.cnpj = text.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/)[0];
+        }
+        if (text.match(/\d{9,}/)) { // IE
+            resultado.dados_extraidos.inscricao_estadual = text.match(/\d{9,}/)[0];
+        }
+    });
+    
+    console.log(`📋 [${connectionId}] Dados extraídos:`, resultado);
     return resultado;
 }
 
-// Escuta mensagens do sistema web (modo original mantido para compatibilidade)
+// Aguardar elemento aparecer
+function waitForElement(selector, timeout = 10000) {
+    return new Promise((resolve, reject) => {
+        const element = document.querySelector(selector);
+        if (element) {
+            resolve(element);
+            return;
+        }
+        
+        const observer = new MutationObserver(() => {
+            const element = document.querySelector(selector);
+            if (element) {
+                observer.disconnect();
+                resolve(element);
+            }
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        setTimeout(() => {
+            observer.disconnect();
+            reject(new Error(`Elemento ${selector} não encontrado em ${timeout}ms`));
+        }, timeout);
+    });
+}
+
+// Função auxiliar de sleep
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Listener para modo original (compatibilidade)
 window.addEventListener('message', async (event) => {
-    console.log('📨 Mensagem recebida (modo original):', event);
-    
     if (event.data.type === 'SEFAZ_AUTO_LOGIN') {
-        console.log('✅ Modo original de login detectado');
+        console.log('✅ Modo original detectado:', event.data);
         
         const { cpf, senha, linkRecibo } = event.data;
         
@@ -356,14 +516,12 @@ window.addEventListener('message', async (event) => {
         if (campoUsuario) {
             campoUsuario.value = cpf;
             campoUsuario.dispatchEvent(new Event('input', { bubbles: true }));
-            console.log('✅ CPF preenchido (modo original)');
         }
         
         const campoSenha = document.querySelector('input[name="senha"]');
         if (campoSenha) {
             campoSenha.value = senha;
             campoSenha.dispatchEvent(new Event('input', { bubbles: true }));
-            console.log('✅ Senha preenchida (modo original)');
         }
         
         await sleep(500);
@@ -371,19 +529,16 @@ window.addEventListener('message', async (event) => {
         const botaoEntrar = document.querySelector('button[type="submit"]');
         if (botaoEntrar) {
             botaoEntrar.click();
-            console.log('✅ Login iniciado (modo original)');
             
             if (linkRecibo) {
-                await aguardarLoginEAbrirRecibo(linkRecibo);
+                await aguardarLoginOriginal(linkRecibo);
             }
         }
     }
 });
 
-// Função original mantida para compatibilidade
-async function aguardarLoginEAbrirRecibo(linkRecibo) {
-    console.log('🔍 Aguardando login (modo original)...');
-    
+// Compatibilidade com modo original
+async function aguardarLoginOriginal(linkRecibo) {
     let tentativas = 0;
     const maxTentativas = 40;
     
@@ -391,11 +546,10 @@ async function aguardarLoginEAbrirRecibo(linkRecibo) {
         tentativas++;
         
         const formularioLogin = document.querySelector('input[name="identificacao"]');
-        const paginaPrincipal = document.querySelector('#principal, .menu-principal, #menu');
+        const paginaPrincipal = document.querySelector('#principal, .menu-principal');
         
         if (!formularioLogin || paginaPrincipal) {
             clearInterval(intervalo);
-            console.log('🎉 Login completado (modo original)');
             
             if (window.opener && linkRecibo) {
                 try {
@@ -403,7 +557,6 @@ async function aguardarLoginEAbrirRecibo(linkRecibo) {
                         type: 'SEFAZ_LOGIN_COMPLETO',
                         linkRecibo: linkRecibo
                     }, '*');
-                    console.log('✅ Gatilho enviado (modo original)');
                 } catch (error) {
                     console.error('❌ Erro ao enviar gatilho:', error);
                 }
@@ -412,14 +565,8 @@ async function aguardarLoginEAbrirRecibo(linkRecibo) {
         
         if (tentativas >= maxTentativas) {
             clearInterval(intervalo);
-            console.error('❌ Timeout login (modo original)');
         }
     }, 500);
 }
 
-// Função auxiliar
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-console.log('✅ Extensão SEFAZ pronta (modo visual + original)');
+console.log('✅ Content Script v1.2.0 pronto - Modo visual robusto + compatibilidade original');

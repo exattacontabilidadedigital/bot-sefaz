@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "SEFAZ-MA Auto Login",
-  "version": "1.1.0",
-  "description": "Preenche automaticamente login do SEFAZ-MA com modo visual",
+  "version": "1.2.0",
+  "description": "Preenche automaticamente login do SEFAZ-MA com modo visual robusto e comunicação aprimorada",
   "permissions": [
     "storage",
     "activeTab",
     "tabs",
-    "management"
+    "management",
+    "scripting"
   ],
   "host_permissions": [
     "*://sefaznet.sefaz.ma.gov.br/*",
@@ -20,11 +21,13 @@
         "*://sefaz.ma.gov.br/*"
       ],
       "js": ["content.js"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "all_frames": false
     }
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "externally_connectable": {
     "matches": [
@@ -32,20 +35,21 @@
       "https://localhost:*/*",
       "http://127.0.0.1:*/*",
       "https://127.0.0.1:*/*",
-      "http://localhost:8000/*",
-      "https://localhost:8000/*",
-      "http://*:8000/*",
-      "https://*:8000/*",
+      "http://192.168.*:*/*",
+      "http://10.*.*.*:*/*",
+      "http://172.16.*.*:*/*",
       "file:///*",
-      "*://*.seudominio.com/*",
-      "*://*.ngrok.io/*",
-      "*://*.herokuapp.com/*"
+      "*://*.localhost/*"
     ]
   },
   "web_accessible_resources": [
     {
-      "resources": ["*.js"],
+      "resources": ["*.js", "*.json"],
       "matches": ["<all_urls>"]
     }
-  ]
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "SEFAZ-MA Auto Login v1.2.0"
+  }
 }
