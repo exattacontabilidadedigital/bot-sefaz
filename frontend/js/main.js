@@ -26,7 +26,10 @@ window.visualModeUI = {
         document.dispatchEvent(event);
     },
     setExtensionId: visualModeModule.setExtensionId,
-    getExtensionId: visualModeModule.getExtensionId
+    getExtensionId: visualModeModule.getExtensionId,
+    diagnose: visualModeModule.diagnoseExtension,
+    checkExtension: visualModeModule.checkChromeExtension,
+    listExtensions: visualModeModule.listInstalledExtensions
 };
 
 // Inicializar aplicação quando o DOM estiver pronto

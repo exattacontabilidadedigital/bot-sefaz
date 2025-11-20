@@ -13,15 +13,22 @@ let visualModeEnabled = false;
 
 // Função para configurar o ID da extensão
 export function setExtensionId(id) {
+    console.log('🔧 Configurando novo ID da extensão:', id);
     EXTENSION_ID = id;
     localStorage.setItem('chrome_extension_id', id);
-    console.log('🔌 ID da extensão configurado:', id);
     
-    // Verificar extensão novamente após configurar
+    // Forçar verificação imediata
     setTimeout(async () => {
+        console.log('🔍 Verificando extensão após configuração...');
         extensionAvailable = await checkChromeExtension();
         updateExtensionStatus();
-    }, 500);
+        
+        if (extensionAvailable) {
+            console.log('🎉 Extensão configurada e funcionando!');
+        } else {
+            console.log('⚠️ Extensão configurada mas não está respondendo');
+        }
+    }, 1000);
 }
 
 // Função para obter o ID atual da extensão
@@ -32,32 +39,42 @@ export function getExtensionId() {
 // Função para verificar se a extensão Chrome está disponível
 export async function checkChromeExtension() {
     return new Promise((resolve) => {
-        // Verificar se Chrome runtime API está disponível
-        if (typeof chrome === 'undefined' || !chrome.runtime) {
-            console.log('🔍 Chrome runtime API não disponível');
-            resolve(false);
-            return;
-        }
-        
-        // Se ID ainda não foi configurado
-        if (EXTENSION_ID === 'your-extension-id-here') {
-            console.log('🔍 ID da extensão ainda não configurado');
-            resolve(false);
-            return;
-        }
-        
         try {
-            // Tentar comunicação com timeout
-            const timeout = setTimeout(() => {
-                console.log('⏰ Timeout na comunicação com extensão');
+            // Verificar se Chrome runtime API está disponível
+            if (typeof chrome === 'undefined' || !chrome.runtime) {
+                console.log('🔍 Chrome runtime API não disponível');
                 resolve(false);
-            }, 3000);
+                return;
+            }
+            
+            // Se ID ainda não foi configurado
+            if (EXTENSION_ID === 'your-extension-id-here') {
+                console.log('🔍 ID da extensão ainda não configurado');
+                resolve(false);
+                return;
+            }
+            
+            // Log do ID atual para debug
+            console.log('🔌 Testando comunicação com extensão ID:', EXTENSION_ID);
+            
+            // Tentar comunicação com timeout mais longo
+            const timeout = setTimeout(() => {
+                console.log('⏰ Timeout na comunicação com extensão (5s)');
+                resolve(false);
+            }, 5000);
             
             chrome.runtime.sendMessage(EXTENSION_ID, { action: 'ping' }, (response) => {
                 clearTimeout(timeout);
                 
                 if (chrome.runtime.lastError) {
                     console.log('❌ Erro na comunicação:', chrome.runtime.lastError.message);
+                    // Se erro específico de ID inválido, limpar localStorage
+                    if (chrome.runtime.lastError.message.includes('Extension') || 
+                        chrome.runtime.lastError.message.includes('Invalid')) {
+                        console.log('🗑️ Removendo ID inválido do localStorage');
+                        localStorage.removeItem('chrome_extension_id');
+                        EXTENSION_ID = 'your-extension-id-here';
+                    }
                     resolve(false);
                 } else if (response && response.pong === true) {
                     console.log('✅ Extensão respondeu:', response);
@@ -67,8 +84,9 @@ export async function checkChromeExtension() {
                     resolve(false);
                 }
             });
+            
         } catch (error) {
-            console.error('💥 Erro ao verificar extensão:', error);
+            console.error('💥 Erro crítico ao verificar extensão:', error);
             resolve(false);
         }
     });
@@ -368,6 +386,48 @@ export function isExtensionAvailable() {
 
 export function isVisualModeEnabled() {
     return visualModeEnabled;
+}
+
+// Função de diagnóstico da extensão
+export function diagnoseExtension() {
+    console.log('🔍 === DIAGNÓSTICO DA EXTENSÃO ===');
+    console.log('Chrome API disponível:', typeof chrome !== 'undefined' && !!chrome.runtime);
+    console.log('ID configurado:', EXTENSION_ID);
+    console.log('ID no localStorage:', localStorage.getItem('chrome_extension_id'));
+    console.log('Extensão disponível:', extensionAvailable);
+    console.log('Modo visual habilitado:', visualModeEnabled);
+    
+    if (typeof chrome !== 'undefined' && chrome.runtime) {
+        console.log('🔌 Tentando ping na extensão...');
+        chrome.runtime.sendMessage(EXTENSION_ID, { action: 'ping' }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.log('❌ Erro no ping:', chrome.runtime.lastError.message);
+            } else {
+                console.log('✅ Resposta do ping:', response);
+            }
+        });
+    }
+    console.log('🔍 === FIM DO DIAGNÓSTICO ===');
+}
+
+// Função para listar extensões instaladas (se possível)
+export async function listInstalledExtensions() {
+    if (typeof chrome !== 'undefined' && chrome.management) {
+        try {
+            const extensions = await chrome.management.getAll();
+            console.log('📋 Extensões instaladas:', extensions.filter(ext => ext.type === 'extension').map(ext => ({
+                id: ext.id,
+                name: ext.name,
+                enabled: ext.enabled
+            })));
+        } catch (error) {
+            console.log('❌ Não foi possível listar extensões:', error.message);
+            console.log('💡 Para listar extensões, use: chrome://extensions/');
+        }
+    } else {
+        console.log('❌ API chrome.management não disponível');
+        console.log('💡 Para ver extensões, vá em: chrome://extensions/');
+    }
 }
 
 // Criar interface de configuração da extensão
