@@ -29,7 +29,8 @@ window.visualModeUI = {
     getExtensionId: visualModeModule.getExtensionId,
     diagnose: visualModeModule.diagnoseExtension,
     checkExtension: visualModeModule.checkChromeExtension,
-    listExtensions: visualModeModule.listInstalledExtensions
+    listExtensions: visualModeModule.listInstalledExtensions,
+    reloadExtension: visualModeModule.reloadExtension
 };
 
 // Inicializar aplicação quando o DOM estiver pronto

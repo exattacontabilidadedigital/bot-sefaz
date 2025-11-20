@@ -1,16 +1,28 @@
 // Background Script - Service Worker
 console.log('🚀 SEFAZ Auto Login - Background script iniciado');
+console.log('🆔 Extension ID:', chrome.runtime.id);
+console.log('📋 Manifest:', chrome.runtime.getManifest());
 
 // Variáveis globais
 let activeConsultaTab = null;
 let consultaInProgress = false;
 
+// Log quando a extensão é carregada
+chrome.runtime.onStartup.addListener(() => {
+    console.log('🔄 Extensão iniciada (startup)');
+});
+
+chrome.runtime.onInstalled.addListener((details) => {
+    console.log('📦 Extensão instalada/atualizada:', details.reason);
+    console.log('🆔 ID da extensão:', chrome.runtime.id);
+});
+
 // Listener para mensagens da extensão
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    console.log('📨 Mensagem recebida:', request);
+    console.log('📨 Mensagem interna recebida:', request);
     
     if (request.type === 'CHECK_EXTENSION') {
-        sendResponse({ installed: true, version: '1.0.0' });
+        sendResponse({ installed: true, version: '1.1.0', id: chrome.runtime.id });
         return true;
     }
     
@@ -19,12 +31,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Listener para mensagens externas (do frontend web)
 chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
-    console.log('🌐 Mensagem externa recebida:', request);
+    console.log('🌐 Mensagem externa recebida de:', sender.origin);
+    console.log('📦 Dados da mensagem:', JSON.stringify(request, null, 2));
     
     switch (request.action) {
         case 'ping':
-            console.log('📍 Ping recebido, respondendo...');
-            sendResponse({ pong: true, status: 'active' });
+            console.log('📍 Ping recebido, respondendo com pong...');
+            const response = { pong: true, status: 'active', timestamp: Date.now() };
+            console.log('📤 Enviando resposta:', response);
+            sendResponse(response);
             return false; // Resposta síncrona
             
         case 'executeConsulta':

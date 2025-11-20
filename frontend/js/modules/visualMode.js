@@ -430,6 +430,30 @@ export async function listInstalledExtensions() {
     }
 }
 
+// Função para recarregar extensão (se tiver permissões)
+export async function reloadExtension() {
+    if (typeof chrome !== 'undefined' && chrome.management) {
+        try {
+            console.log('🔄 Tentando recarregar extensão...');
+            await chrome.management.setEnabled(EXTENSION_ID, false);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await chrome.management.setEnabled(EXTENSION_ID, true);
+            console.log('✅ Extensão recarregada com sucesso!');
+            
+            // Aguardar um pouco e verificar novamente
+            setTimeout(async () => {
+                extensionAvailable = await checkChromeExtension();
+                updateExtensionStatus();
+            }, 2000);
+        } catch (error) {
+            console.log('❌ Não foi possível recarregar automaticamente:', error.message);
+            console.log('💡 Recarregue manualmente em: chrome://extensions/');
+        }
+    } else {
+        console.log('❌ Para recarregar, vá em chrome://extensions/ e clique no ícone de recarregar');
+    }
+}
+
 // Criar interface de configuração da extensão
 function createExtensionConfigInterface() {
     // Verificar se já existe ID configurado
