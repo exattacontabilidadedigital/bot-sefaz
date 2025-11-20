@@ -4,7 +4,7 @@ import * as api from './api.js';
 import * as utils from './utils.js';
 
 export function initAgendamento() {
-    // Configurar data mínima (agora)
+    // Configurar data mínima (5 minutos a partir de agora)
     const now = new Date();
     const minDate = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutos a partir de agora
     document.getElementById('dataAgendada').min = minDate.toISOString().slice(0, 16);
@@ -146,6 +146,16 @@ async function handleCreateAgendamento(event) {
     
     if (selectedEmpresas.length === 0) {
         utils.showNotification('Selecione pelo menos uma empresa', 'error');
+        return;
+    }
+    
+    // Validar data/hora mínima (5 minutos no futuro)
+    const dataAgendada = new Date(formData.get('dataAgendada'));
+    const agora = new Date();
+    const cincoMinutosNoFuturo = new Date(agora.getTime() + 5 * 60 * 1000);
+    
+    if (dataAgendada < cincoMinutosNoFuturo) {
+        utils.showNotification('O agendamento deve ser pelo menos 5 minutos no futuro', 'error');
         return;
     }
     

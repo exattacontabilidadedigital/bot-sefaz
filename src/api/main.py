@@ -1729,14 +1729,21 @@ async def limpar_jobs_travados():
 async def criar_agendamento(agendamento: AgendamentoRequest):
     """Cria agendamento para execução de empresas"""
     try:
-        from datetime import datetime
+        from datetime import datetime, timedelta
         
         # Validar formato da data
         try:
             data_agendada = datetime.fromisoformat(agendamento.data_agendada.replace('Z', '+00:00'))
-            # Verificar se data não é no passado
-            if data_agendada <= datetime.now():
-                raise HTTPException(status_code=400, detail="Data agendada deve ser no futuro")
+            
+            # Verificar se data é pelo menos 5 minutos no futuro
+            agora = datetime.now()
+            cinco_minutos_futuro = agora + timedelta(minutes=5)
+            
+            if data_agendada < cinco_minutos_futuro:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="O agendamento deve ser pelo menos 5 minutos no futuro"
+                )
         except ValueError:
             raise HTTPException(status_code=400, detail="Formato de data inválido. Use ISO format: 2024-11-20T10:30:00")
         
