@@ -1,16 +1,13 @@
-# 🚀 Extensão Chrome SEFAZ-MA Auto Login v1.2.0
+# Extensão SEFAZ-MA Auto Login
 
-Extensão robusta do Chrome que automatiza consultas no portal da SEFAZ-MA com comunicação aprimorada e modo visual otimizado.
+Extensão Chrome/Edge para preencher automaticamente as credenciais no portal SEFAZ-MA.
 
-## ✨ Principais Melhorias v1.2.0
+## 📦 Instalação
 
-- 🔥 **Service Worker robusto** com heartbeat automático
-- 🛡️ **Comunicação ultra-confiável** com retry automático e timeout otimizado
-- 🎯 **Detecção inteligente** de status da extensão
-- 📊 **Popup de diagnóstico** com status em tempo real  
-- 🔧 **Validação avançada** de origem e permissões
-- ⚡ **Performance otimizada** com gerenciamento de estado
-- 🧪 **Modo de teste integrado** para diagnóstico
+### Chrome/Edge (Modo Desenvolvedor)
+
+1. **Abra o gerenciador de extensões:**
+   - Chrome: `chrome://extensions/`
    - Edge: `edge://extensions/`
 
 2. **Ative o "Modo do desenvolvedor"** (canto superior direito)
