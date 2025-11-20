@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "SEFAZ-MA Auto Login",
-  "version": "1.2.0",
-  "description": "Preenche automaticamente login do SEFAZ-MA com modo visual robusto",
+  "name": "Portal SEFAZ Automator",
+  "version": "2.0.0",
+  "description": "Automatizador de consultas no Portal SEFAZ - ID Renovado 2025",
   "permissions": [
     "storage",
     "activeTab",
@@ -35,6 +35,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "SEFAZ-MA Auto Login"
-  }
+    "default_title": "Portal SEFAZ Automator"
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1qkNSxpYjFrn5g0F1n2q3X9wFhN8xY2VuZ3lKjM4QgPvWt6RxSdFnEr7Ys2TcLp9XqG8hN5YrJ4mK7LzVpQ3E6uR8TyH2NcX5QgJ9PtV4LkNfR2M7WzKsG3Y8UvQ6RjF9NhT5XqL7JdE4KgP2VtWrY8ZcN3FmH6LqR9TyJ5XgK2NvM8WpL4QrT7YsF6HgN2VzP9KjL3QtR5XyM8WvG4NpT2YqL9FjH6RsN3VzT8KgP5XtW7YcF2LqR4MgN6VzP8KjL2QtR9XyM5WvG7NpT4YqL8FjH3RsN6VzT5KgP2XtW9YcF4LqR7MgN3VzP6KjL5QtR8XyM2WvG9NpT7YqL4FjH6RsN2VzT9KgP5XtW3YcF7LqR5"
 }

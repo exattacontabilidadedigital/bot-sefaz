@@ -1,5 +1,6 @@
-// Content Script Simplificado
-console.log('🔐 SEFAZ Content Script carregado em:', window.location.href);
+// Content Script Simplificado - Cache Limpo 2025-11-20
+console.log('🔐 SEFAZ Content Script carregado - CACHE LIMPO em:', window.location.href);
+console.log('🧹 Nova versão carregada:', '1.2.1', new Date().toISOString());
 
 // Listener para mensagens
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

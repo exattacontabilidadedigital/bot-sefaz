@@ -1,5 +1,7 @@
-// Background Script - Versão Simplificada e Robusta
-console.log('🚀 SEFAZ Auto Login - Background iniciado');
+// Background Script - Portal SEFAZ Automator v2.0.0 - ID RENOVADO
+console.log('🚀 Portal SEFAZ Automator v2.0.0 - Background iniciado');
+console.log('🆔 NOVO ID (evita bloqueios):', chrome.runtime.id);
+console.log('⏰ Timestamp:', new Date().toISOString());
 
 // Estado simples
 let extensionState = {
@@ -21,7 +23,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({
             success: true,
             installed: true,
-            version: '1.2.0',
+            version: '2.0.0',
             id: chrome.runtime.id,
             active: true
         });
@@ -63,7 +65,7 @@ chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => 
                     status: 'active',
                     timestamp: Date.now(),
                     extensionId: chrome.runtime.id,
-                    version: '1.2.0',
+                    version: '2.0.0',
                     connections: extensionState.connections
                 }
             });
