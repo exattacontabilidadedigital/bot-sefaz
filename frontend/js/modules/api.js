@@ -248,6 +248,17 @@ export async function cancelarJob(jobId) {
     return await response.json();
 }
 
+export async function reprocessarJob(jobId) {
+    const response = await fetch(`${API_BASE_URL}/fila/reprocessar/${jobId}`, {
+        method: 'POST'
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Erro ao reprocessar job');
+    }
+    return await response.json();
+}
+
 // Funções de Agendamento
 export async function criarAgendamento(data) {
     const response = await fetch(`${API_BASE_URL}/agendamentos`, {
@@ -312,3 +323,57 @@ export async function fetchCredenciaisEmpresa(empresaId) {
     }
     return await response.json();
 }
+
+// ================================
+// MESSAGEBOT API FUNCTIONS
+// ================================
+
+/**
+ * Processa mensagens usando o MessageBot
+ */
+export async function processarMensagensEmpresa(data) {
+    const response = await fetch(`${API_BASE_URL}/mensagens/processar`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Erro ao processar mensagens');
+    }
+    return await response.json();
+}
+
+/**
+ * Busca estatísticas de mensagens para uma empresa específica
+ */
+export async function fetchMensagensEstatisticas(inscricao_estadual = null) {
+    const url = inscricao_estadual 
+        ? `${API_BASE_URL}/mensagens/estatisticas/${inscricao_estadual}`
+        : `${API_BASE_URL}/mensagens/estatisticas`;
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error('Erro ao buscar estatísticas de mensagens');
+    }
+    return await response.json();
+}
+
+// Função genérica para requisições DELETE
+export async function delete_request(url) {
+    const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Erro desconhecido' }));
+        throw new Error(errorData.detail || `Erro ${response.status}: ${response.statusText}`);
+    }
+    
+    return await response.json();
+}
+
+// Alias para delete (palavra reservada em JS)
+export { delete_request as delete };

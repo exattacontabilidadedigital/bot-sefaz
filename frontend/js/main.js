@@ -17,32 +17,40 @@ window.agendamentoUI = agendamentoUI;
 
 // Inicializar aplicação quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', async () => {
-    // Inicializar ícones Lucide
-    initLucideIcons();
-    
-    // Configurar listeners das abas
-    tabsUI.setupTabListeners();
-    
-    // Inicializar abas (carrega aba de consultas por padrão)
-    tabsUI.initializeTabs();
-    
-    // Configurar polling da fila
-    filaUI.setupFilaPolling();
-    
-    // Inicializar módulo de agendamento
-    agendamentoUI.initAgendamento();
-    
-    // Setup de event listeners para consultas
-    setupConsultasListeners();
-    
-    // Setup de event listeners para empresas
-    setupEmpresasListeners();
-    
-    // Setup de event listeners para fila
-    setupFilaListeners();
-    
-    // Setup do toggle de modo headless
-    setupHeadlessToggle();
+    try {
+        // Aguardar um frame para garantir que todos os elementos estejam renderizados
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        
+        // Inicializar ícones Lucide
+        initLucideIcons();
+        
+        // Configurar listeners das abas
+        tabsUI.setupTabListeners();
+        
+        // Inicializar abas (carrega aba de consultas por padrão)
+        tabsUI.initializeTabs();
+        
+        // Configurar polling da fila
+        filaUI.setupFilaPolling();
+        
+        // Inicializar módulo de agendamento
+        agendamentoUI.initAgendamento();
+        
+        // Setup de event listeners para consultas
+        setupConsultasListeners();
+        
+        // Setup de event listeners para empresas
+        setupEmpresasListeners();
+        
+        // Setup de event listeners para fila
+        setupFilaListeners();
+        
+        // Setup do toggle de modo headless
+        setupHeadlessToggle();
+        
+    } catch (error) {
+        console.error('Erro durante inicialização da aplicação:', error);
+    }
 });
 
 function setupConsultasListeners() {

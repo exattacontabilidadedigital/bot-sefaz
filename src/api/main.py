@@ -1142,6 +1142,30 @@ async def get_mensagem(mensagem_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar mensagem: {str(e)}")
 
+@app.delete("/api/mensagens/{mensagem_id}")
+async def delete_mensagem(mensagem_id: int):
+    """Exclui uma mensagem pelo ID"""
+    try:
+        conn = sqlite3.connect(DB_MENSAGENS)
+        cursor = conn.cursor()
+        
+        # Verificar se a mensagem existe
+        cursor.execute("SELECT id FROM mensagens_sefaz WHERE id = ?", (mensagem_id,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Mensagem não encontrada")
+        
+        # Excluir mensagem
+        cursor.execute("DELETE FROM mensagens_sefaz WHERE id = ?", (mensagem_id,))
+        conn.commit()
+        conn.close()
+        
+        return {"message": "Mensagem excluída com sucesso", "id": mensagem_id}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao excluir mensagem: {str(e)}")
+
 # ========================================
 # FIM ENDPOINTS DE MENSAGENS SEFAZ
 # ========================================
@@ -1898,6 +1922,76 @@ async def limpar_jobs_travados():
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao limpar jobs travados: {str(e)}")
+
+@app.post("/api/fila/reprocessar/{job_id}")
+async def reprocessar_job(job_id: int):
+    """Reprocessa um job que falhou, resetando para status pendente"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Verificar se o job existe e pode ser reprocessado
+        cursor.execute("""
+            SELECT id, status, empresa_id, tentativas, max_tentativas, erro_detalhes
+            FROM queue_jobs 
+            WHERE id = ?
+        """, (job_id,))
+        
+        job = cursor.fetchone()
+        if not job:
+            raise HTTPException(status_code=404, detail="Job não encontrado")
+        
+        job_id_db, status, empresa_id, tentativas, max_tentativas, erro_detalhes = job
+        
+        # Verificar se o job pode ser reprocessado (deve estar com status 'failed')
+        if status != 'failed':
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Apenas jobs com status 'failed' podem ser reprocessados. Status atual: {status}"
+            )
+        
+        # Verificar se não excedeu o limite de tentativas
+        if tentativas >= max_tentativas:
+            # Incrementar max_tentativas para permitir nova tentativa
+            novo_max_tentativas = max_tentativas + 1
+            cursor.execute("""
+                UPDATE queue_jobs 
+                SET status = 'pending',
+                    data_processamento = NULL,
+                    max_tentativas = ?,
+                    erro_detalhes = NULL
+                WHERE id = ?
+            """, (novo_max_tentativas, job_id))
+            
+            mensagem = f"Job reprocessado com limite de tentativas aumentado para {novo_max_tentativas}"
+        else:
+            # Resetar job para status pendente
+            cursor.execute("""
+                UPDATE queue_jobs 
+                SET status = 'pending',
+                    data_processamento = NULL,
+                    erro_detalhes = NULL
+                WHERE id = ?
+            """, (job_id,))
+            
+            mensagem = f"Job {job_id} foi resetado para reprocessamento (tentativa {tentativas + 1}/{max_tentativas})"
+        
+        conn.commit()
+        conn.close()
+        
+        return {
+            "message": mensagem,
+            "job_id": job_id,
+            "empresa_id": empresa_id,
+            "status_anterior": status,
+            "tentativas": tentativas,
+            "erro_anterior": erro_detalhes
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao reprocessar job: {str(e)}")
 
 # ================================
 # ENDPOINTS PARA AGENDAMENTOS

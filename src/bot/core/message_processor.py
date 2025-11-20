@@ -201,8 +201,8 @@ class SEFAZMessageProcessor:
                 # Mesmo com timeout, a página pode ter carregado
             
             # Aguardar estabilidade da página
-            await page.wait_for_timeout(HumanBehavior.random_delay(1000, 2000))
-            await HumanBehavior.wait_for_page_stability(page, timeout=10000)
+            await page.wait_for_timeout(1000)
+            await page.wait_for_load_state("networkidle", timeout=10000)
             
             # Verificar se mudou
             filtro_atualizado = await page.query_selector(message_selectors['filtro_mensagens'])
@@ -226,31 +226,104 @@ class SEFAZMessageProcessor:
             return False
     
     async def _get_pending_message_links(self, page: Page) -> List:
-        """Busca todos os links de mensagens aguardando ciência"""
+        """Busca todos os links de mensagens aguardando ciência com comportamento humano"""
         try:
-            # Aguardar um pouco mais para garantir que a lista foi atualizada
+            # Comportamento humano: aguardar e "ler" a página
             logger.info("⏳ Aguardando lista de mensagens atualizar...")
-            await page.wait_for_timeout(HumanBehavior.random_delay(2000, 3000))
+            await page.wait_for_timeout(2000)
             
-            # Debug: verificar quantos links existem
-            all_links = await page.query_selector_all("a[href*='abrirMensagem']")
-            logger.info(f"   ℹ️ Total de links com 'abrirMensagem': {len(all_links)}")
+            # Aguardar estabilidade da página
+            await page.wait_for_load_state("networkidle", timeout=10000)
             
-            # Buscar por ícones de mensagem lida (aguardando ciência usa ic_msg_lida.png)
-            message_icons = await page.query_selector_all("a[href*='abrirMensagem'] img[src*='ic_msg_lida.png']")
+            # Simular leitura humana da página
+            await page.wait_for_timeout(1000)
             
-            if message_icons:
-                logger.info(f"📧 Encontrados {len(message_icons)} ícones de mensagem aguardando ciência (ic_msg_lida.png)")
-                return message_icons
+            # Debug: verificar conteúdo da página
+            page_content = await page.content()
+            has_messages = "abrirMensagem" in page_content
+            logger.info(f"   🔍 Página contém links de mensagem: {has_messages}")
             
-            # Fallback: tentar ic_msg_nova.png (mensagens não lidas que aguardam ciência)
-            message_icons = await page.query_selector_all("a[href*='abrirMensagem'] img[src*='ic_msg_nova.png']")
-            if message_icons:
-                logger.info(f"📧 Encontrados {len(message_icons)} ícones de mensagem nova (ic_msg_nova.png)")
-                return message_icons
+            # Verificar se está no filtro correto
+            filtro_atual = await page.query_selector('select[name="visualizarMensagens"]')
+            if filtro_atual:
+                valor_filtro = await filtro_atual.evaluate("el => el.value")
+                logger.info(f"   🎠 Filtro atual: {valor_filtro} (4=Aguardando Ciência)")
             
-            # Verificar se há imagens de "aguardando ciência"
-            esperando_icons = await page.query_selector_all("img[src*='esperando_ciencia.png']")
+            # Lista de seletores para mensagens aguardando ciência, em ordem de preferência
+            message_selectors = [
+                # Seletores mais específicos primeiro
+                "a[href*='abrirMensagem'] img[src*='ic_msg_lida.png']",  # Mensagens lidas aguardando ciência
+                "a[href*='abrirMensagem'] img[src*='ic_msg_nova.png']",  # Mensagens novas
+                "a[href*='abrirMensagem'] img[src*='aguardando']",      # Ícones com "aguardando"
+                "a[href*='abrirMensagem'] img[title*='abrir']",         # Ícones com title
+                "a[href*='abrirMensagem']",                             # Qualquer link de mensagem
+            ]
+            
+            message_elements = []
+            
+            # Tentar cada seletor
+            for i, selector in enumerate(message_selectors):
+                try:
+                    logger.info(f"   🔎 Tentativa {i+1}: {selector}")
+                    elements = await page.query_selector_all(selector)
+                    
+                    if elements:
+                        logger.info(f"   ✅ Encontrados {len(elements)} elementos com seletor {i+1}")
+                        
+                        # Se são imagens, pegar os links pais
+                        if "img" in selector:
+                            links = []
+                            for img in elements:
+                                parent_link = await img.query_selector("xpath=..")
+                                if parent_link:
+                                    # Verificar se é realmente um link de mensagem
+                                    href = await parent_link.get_attribute("href")
+                                    if href and "abrirMensagem" in href:
+                                        links.append(parent_link)
+                            message_elements = links
+                        else:
+                            message_elements = elements
+                        
+                        if message_elements:
+                            break
+                            
+                except Exception as e:
+                    logger.debug(f"   Seletor {selector} falhou: {e}")
+                    continue
+            
+            if message_elements:
+                logger.info(f"📧 Encontradas {len(message_elements)} mensagem(ns) aguardando ciência")
+                
+                # Debug: mostrar detalhes das mensagens encontradas
+                for i, element in enumerate(message_elements[:3]):  # Mostrar apenas as primeiras 3
+                    try:
+                        href = await element.get_attribute("href")
+                        title = await element.get_attribute("title") or "sem title"
+                        logger.info(f"   Mensagem {i+1}: {href[:50]}... (title: {title[:30]}...)")
+                    except:
+                        pass
+                        
+                return message_elements
+            else:
+                logger.info("ℹ️ Nenhuma mensagem aguardando ciência encontrada")
+                
+                # Debug adicional: listar todos os links na página
+                all_links = await page.query_selector_all("a")
+                message_links = []
+                for link in all_links[:10]:  # Apenas primeiros 10
+                    try:
+                        href = await link.get_attribute("href")
+                        if href and "abrirMensagem" in href:
+                            message_links.append(href)
+                    except:
+                        pass
+                
+                if message_links:
+                    logger.info(f"   🔍 Debug: Encontrados {len(message_links)} links gerais de mensagem")
+                    for i, href in enumerate(message_links[:3]):
+                        logger.info(f"     Link {i+1}: {href[:60]}...")
+                
+                return []
             if esperando_icons:
                 logger.info(f"   ℹ️ Encontrados {len(esperando_icons)} ícones de 'esperando_ciencia.png'")
             
@@ -954,6 +1027,53 @@ class SEFAZMessageProcessor:
         return None
 
 
+    async def processar_mensagem_individual(
+        self, 
+        page: Page, 
+        cpf_socio: str, 
+        inscricao_estadual: str
+    ) -> bool:
+        """Processa uma única mensagem individual (compatibilidade com message_bot)"""
+        try:
+            logger.info("📝 Processando mensagem individual...")
+            
+            # Extrair dados da mensagem atual
+            logger.info("   🔍 Extraindo dados da mensagem...")
+            message_data = await self._extract_complete_message_data(page, inscricao_estadual)
+            
+            if message_data:
+                message_data['cpf_socio'] = cpf_socio
+                
+                logger.info(f"   ✅ Dados extraídos - Assunto: {message_data.get('assunto', 'N/A')}")
+                
+                # Salvar no banco
+                logger.info("   💾 Salvando no banco...")
+                message_id = self._save_message_to_database(message_data)
+                
+                if message_id:
+                    logger.info(f"   ✅ Mensagem salva com ID: {message_id}")
+                    
+                    # Dar ciência
+                    logger.info("   📋 Dando ciência...")
+                    if await self._give_acknowledgment(page):
+                        await self._handle_confirmation_dialog(page)
+                        logger.info("   ✅ Ciência registrada com sucesso")
+                        return True
+                    else:
+                        logger.warning("   ⚠️ Falha ao dar ciência")
+                        return False
+                else:
+                    logger.error("   ❌ Falha ao salvar no banco")
+                    return False
+            else:
+                logger.warning("   ⚠️ Não foi possível extrair dados da mensagem")
+                return False
+        
+        except Exception as e:
+            logger.error(f"❌ Erro ao processar mensagem individual: {e}")
+            return False
+
+
 # Classe compatível com o código antigo
 class SEFAZBotCiencia(SEFAZMessageProcessor):
     """Classe de compatibilidade com a interface antiga"""
@@ -965,3 +1085,49 @@ class SEFAZBotCiencia(SEFAZMessageProcessor):
     async def processar_ciencia(self, page: Page) -> int:
         """Método de compatibilidade com a interface antiga"""
         return await self.processar_mensagens_aguardando_ciencia(page)
+
+    async def processar_mensagem_individual(
+        self, 
+        page: Page, 
+        cpf_socio: str, 
+        inscricao_estadual: str
+    ) -> bool:
+        """Processa uma única mensagem individual (compatibilidade com message_bot)"""
+        try:
+            logger.info("📝 Processando mensagem individual...")
+            
+            # Extrair dados da mensagem atual
+            logger.info("   🔍 Extraindo dados da mensagem...")
+            message_data = await self._extract_complete_message_data(page, inscricao_estadual)
+            
+            if message_data:
+                message_data['cpf_socio'] = cpf_socio
+                
+                logger.info(f"   ✅ Dados extraídos - Assunto: {message_data.get('assunto', 'N/A')}")
+                
+                # Salvar no banco
+                logger.info("   💾 Salvando no banco...")
+                message_id = self._save_message_to_database(message_data)
+                
+                if message_id:
+                    logger.info(f"   ✅ Mensagem salva com ID: {message_id}")
+                    
+                    # Dar ciência
+                    logger.info("   📋 Dando ciência...")
+                    if await self._give_acknowledgment(page):
+                        await self._handle_confirmation_dialog(page)
+                        logger.info("   ✅ Ciência registrada com sucesso")
+                        return True
+                    else:
+                        logger.warning("   ⚠️ Falha ao dar ciência")
+                        return False
+                else:
+                    logger.error("   ❌ Falha ao salvar no banco")
+                    return False
+            else:
+                logger.warning("   ⚠️ Não foi possível extrair dados da mensagem")
+                return False
+        
+        except Exception as e:
+            logger.error(f"❌ Erro ao processar mensagem individual: {e}")
+            return False

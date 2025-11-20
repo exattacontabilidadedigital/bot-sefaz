@@ -60,7 +60,7 @@ class MensagensUI {
             const tbody = document.getElementById('mensagens-tbody');
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+                    <td colspan="6" class="px-6 py-4 text-center text-gray-500">
                         <i data-lucide="loader" class="h-6 w-6 animate-spin inline mr-2"></i>
                         Carregando mensagens...
                     </td>
@@ -149,7 +149,7 @@ class MensagensUI {
             const tbody = document.getElementById('mensagens-tbody');
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="px-6 py-4 text-center text-red-500">
+                    <td colspan="6" class="px-6 py-4 text-center text-red-500">
                         <i data-lucide="alert-circle" class="h-6 w-6 inline mr-2"></i>
                         Erro ao carregar mensagens: ${error.message}
                     </td>
@@ -165,9 +165,7 @@ class MensagensUI {
      */
     createMensagemRow(msg) {
         const statusBadge = this.getStatusBadge(msg);
-        const statusProcTag = this.getStatusProcessamento(msg);
         const dataEnvio = this.formatDate(msg.data_envio);
-        const vencimento = msg.vencimento ? this.formatDate(msg.vencimento) : '-';
 
         return `
             <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.mensagensUI.showMensagemModal(${msg.id})">
@@ -176,7 +174,8 @@ class MensagensUI {
                     <div class="text-xs text-gray-500">IE: ${this.escapeHtml(msg.inscricao_estadual || '-')}</div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">${this.escapeHtml(msg.enviada_por || '-')}</div>
+                    <div class="text-sm font-medium text-gray-900">${this.escapeHtml(msg.nome_empresa || 'Empresa não identificada')}</div>
+                    <div class="text-xs text-gray-500">${this.escapeHtml(msg.enviada_por || 'SEFAZ-MA')}</div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     ${dataEnvio}
@@ -186,18 +185,23 @@ class MensagensUI {
                         ${this.escapeHtml(msg.tipo_mensagem || 'Geral')}
                     </span>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    ${vencimento}
-                </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     ${statusBadge}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    ${statusProcTag}
-                </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button onclick="event.stopPropagation(); window.mensagensUI.showMensagemModal(${msg.id})" class="text-indigo-600 hover:text-indigo-900">
-                        <i data-lucide="eye" class="h-4 w-4 inline"></i> Ver
+                    <div class="flex items-center gap-2">
+                        <button onclick="event.stopPropagation(); window.mensagensUI.showMensagemModal(${msg.id})" 
+                                class="text-indigo-600 hover:text-indigo-900 p-1 rounded" 
+                                title="Ver mensagem">
+                            <i data-lucide="eye" class="h-4 w-4"></i>
+                        </button>
+                        <button onclick="event.stopPropagation(); window.mensagensUI.deleteMensagem(${msg.id})" 
+                                class="text-red-600 hover:text-red-900 p-1 rounded" 
+                                title="Excluir mensagem">
+                            <i data-lucide="trash-2" class="h-4 w-4"></i>
+                        </button>
+                    </div>
+                </td>
                     </button>
                 </td>
             </tr>
@@ -205,12 +209,47 @@ class MensagensUI {
     }
 
     /**
+     * Exclui uma mensagem
+     */
+    async deleteMensagem(mensagemId) {
+        try {
+            // Confirmação antes de excluir
+            const confirmacao = confirm('Tem certeza que deseja excluir esta mensagem? Esta ação não pode ser desfeita.');
+            if (!confirmacao) {
+                return;
+            }
+
+            // Fazer requisição DELETE para a API
+            await api.delete(`/api/mensagens/${mensagemId}`);
+            
+            showNotification('Mensagem excluída com sucesso!', 'success');
+            
+            // Recarregar a lista de mensagens
+            await this.loadMensagens();
+            
+        } catch (error) {
+            console.error('Erro ao excluir mensagem:', error);
+            showNotification('Erro ao excluir mensagem: ' + error.message, 'error');
+        }
+    }
+
+    /**
      * Retorna o badge de status da mensagem
      */
     getStatusBadge(msg) {
-        if (msg.data_ciencia && msg.data_ciencia !== 'N/A') {
+        // Verificar se a mensagem foi processada com sucesso
+        const statusProcessamento = this.getStatusProcessamento(msg);
+        if (statusProcessamento.includes('Processada')) {
             return `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                        <i data-lucide="check-circle" class="h-3 w-3 mr-1"></i> Lida
+                        <i data-lucide="check-circle" class="h-3 w-3 mr-1"></i> Processada
+                    </span>`;
+        } else if (statusProcessamento.includes('Não Processada')) {
+            return `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                        <i data-lucide="x-circle" class="h-3 w-3 mr-1"></i> Não Processada
+                    </span>`;
+        } else if (msg.data_ciencia && msg.data_ciencia !== 'N/A') {
+            return `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                        <i data-lucide="eye" class="h-3 w-3 mr-1"></i> Lida
                     </span>`;
         } else {
             return `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">

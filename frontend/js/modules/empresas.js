@@ -114,6 +114,7 @@ function setupCheckboxListeners() {
 function updateSelectionInfo() {
     const selectionInfo = document.getElementById('selectionInfo');
     const addToQueueBtn = document.getElementById('addToQueueBtn');
+    const messageBotBtn = document.getElementById('messagebot-process-btn');
     const selectAllBtn = document.getElementById('selectAllEmpresas');
     
     if (selectionInfo) {
@@ -127,6 +128,10 @@ function updateSelectionInfo() {
     
     if (addToQueueBtn) {
         addToQueueBtn.disabled = appState.selectedEmpresas.size === 0;
+    }
+    
+    if (messageBotBtn) {
+        messageBotBtn.disabled = appState.selectedEmpresas.size === 0;
     }
     
     if (selectAllBtn) {
@@ -999,3 +1004,187 @@ function showCredentialsModal(credenciais) {
     
     utils.initLucideIcons();
 }
+
+// ================================
+// MESSAGEBOT FUNCTIONS
+// ================================
+
+/**
+ * Processa mensagens para empresas selecionadas usando o MessageBot
+ */
+export async function processarMensagensEmpresas() {
+    const selectedEmpresas = Array.from(appState.selectedEmpresas);
+    
+    if (selectedEmpresas.length === 0) {
+        utils.showNotification('Selecione pelo menos uma empresa', 'error');
+        return;
+    }
+    
+    if (!confirm(`Processar mensagens para ${selectedEmpresas.length} empresa(s) selecionada(s)?`)) {
+        return;
+    }
+    
+    try {
+        showMessageBotProgress(true, `Iniciando processamento de ${selectedEmpresas.length} empresa(s)...`);
+        
+        let sucessos = 0;
+        let erros = 0;
+        
+        for (let i = 0; i < selectedEmpresas.length; i++) {
+            const empresaId = selectedEmpresas[i];
+            const empresa = appState.empresasData.find(e => e.id === empresaId);
+            
+            if (!empresa) continue;
+            
+            try {
+                const progress = Math.round(((i + 1) / selectedEmpresas.length) * 100);
+                showMessageBotProgress(true, `Processando ${empresa.nome_empresa} (${i + 1}/${selectedEmpresas.length})...`, progress);
+                
+                // Buscar credenciais da empresa
+                const credenciais = await api.fetchCredenciaisEmpresa(empresaId);
+                
+                if (!credenciais.senha) {
+                    throw new Error('Senha não configurada para esta empresa');
+                }
+                
+                // Processar mensagens
+                const result = await api.processarMensagensEmpresa({
+                    cpf: credenciais.cpf_socio,
+                    senha: credenciais.senha,
+                    inscricao_estadual: credenciais.inscricao_estadual,
+                    headless: true
+                });
+                
+                if (result.sucesso) {
+                    sucessos++;
+                    console.log(`✅ ${empresa.nome_empresa}: ${result.mensagens_processadas} mensagens processadas`);
+                } else {
+                    erros++;
+                    console.error(`❌ ${empresa.nome_empresa}: ${result.mensagem}`);
+                }
+                
+            } catch (error) {
+                erros++;
+                console.error(`❌ ${empresa.nome_empresa}: ${error.message}`);
+            }
+        }
+        
+        showMessageBotProgress(false);
+        
+        // Resultado final
+        if (sucessos > 0 || erros > 0) {
+            const resultMessage = `Processamento concluído: ${sucessos} sucesso(s), ${erros} erro(s)`;
+            utils.showNotification(resultMessage, sucessos > 0 ? 'success' : 'warning');
+        }
+        
+        // Limpar seleções
+        appState.selectedEmpresas.clear();
+        updateSelectionInfo();
+        updateEmpresasTable(appState.empresasData);
+        
+    } catch (error) {
+        showMessageBotProgress(false);
+        console.error('Erro no processamento de mensagens:', error);
+        utils.showNotification(`Erro no processamento: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Mostra/esconde o indicador de progresso do MessageBot
+ */
+function showMessageBotProgress(show, message = 'Processando...', progress = 0) {
+    const progressDiv = document.getElementById('messagebot-progress');
+    const messageSpan = document.getElementById('messagebot-status');
+    const progressBar = document.getElementById('messagebot-progress-bar');
+    const processBtn = document.getElementById('messagebot-process-btn');
+    
+    if (show) {
+        if (progressDiv) progressDiv.classList.remove('hidden');
+        if (messageSpan) messageSpan.textContent = message;
+        if (progressBar) progressBar.style.width = `${progress}%`;
+        if (processBtn) {
+            processBtn.disabled = true;
+            processBtn.classList.add('opacity-50');
+        }
+    } else {
+        if (progressDiv) progressDiv.classList.add('hidden');
+        if (processBtn) {
+            processBtn.disabled = false;
+            processBtn.classList.remove('opacity-50');
+        }
+    }
+}
+
+/**
+ * Mostra estatísticas de mensagens para empresa selecionada
+ */
+export async function showMensagensStats(empresaId) {
+    try {
+        const empresa = appState.empresasData.find(e => e.id === empresaId);
+        if (!empresa) return;
+        
+        const stats = await api.fetchMensagensEstatisticas(empresa.inscricao_estadual);
+        
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50';
+        modal.innerHTML = `
+            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Estatísticas de Mensagens</h3>
+                    <div class="bg-gray-50 p-4 rounded-md mb-4">
+                        <p class="text-sm font-medium text-gray-700 mb-2">Empresa: ${empresa.nome_empresa}</p>
+                        <p class="text-sm text-gray-600 mb-2">IE: ${empresa.inscricao_estadual}</p>
+                        <hr class="my-3">
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                                <p class="text-lg font-bold text-blue-600">${stats.total}</p>
+                                <p class="text-xs text-gray-500">Total</p>
+                            </div>
+                            <div>
+                                <p class="text-lg font-bold text-green-600">${stats.hoje}</p>
+                                <p class="text-xs text-gray-500">Hoje</p>
+                            </div>
+                            <div>
+                                <p class="text-lg font-bold text-purple-600">${stats.semana}</p>
+                                <p class="text-xs text-gray-500">7 dias</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-end">
+                        <button onclick="this.closest('.fixed').remove()" class="btn-secondary">Fechar</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+    } catch (error) {
+        console.error('Erro ao buscar estatísticas de mensagens:', error);
+        utils.showNotification('Erro ao buscar estatísticas de mensagens', 'error');
+    }
+}
+
+// Create empresasUI object and expose globally
+const empresasUI = {
+    loadEmpresas,
+    applyEmpresasFilters,
+    clearEmpresasFilters,
+    showAddEmpresaModal,
+    editEmpresa,
+    closeEmpresaModal,
+    saveEmpresa,
+    deleteEmpresa,
+    addSelectedToQueue,
+    nextEmpresasPage,
+    prevEmpresasPage,
+    changeEmpresasItemsPerPage,
+    initializeCSVImport,
+    importarCSV,
+    autoLoginEmpresa,
+    copyCredentials,
+    processarMensagensEmpresas,
+    showMensagensStats
+};
+
+window.empresasUI = empresasUI;

@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 class SEFAZAuthenticator:
     """Classe responsável pela autenticação no sistema SEFAZ"""
     
-    def __init__(self, timeout: int = 30000):
+    def __init__(self, timeout: int = 60000):  # Aumentado para 60s
         self.timeout = timeout
         self.selectors = SEFAZSelectors()
     
@@ -73,8 +73,7 @@ class SEFAZAuthenticator:
             logger.debug(f"   - Senha: {'*' * len(senha)}")
             logger.info("=" * 80)
             
-            # Configurar timeout mais longo para navegação inicial
-            page.set_default_timeout(TIMEOUT_NAVIGATION * 2)  # 60 segundos
+            # Não configurar timeout da página aqui - será gerenciado individualmente
             
             # Navegar para a página
             await self._navigate_to_login_page(page, sefaz_url)
@@ -91,8 +90,7 @@ class SEFAZAuthenticator:
             # Aguardar e validar login
             await self._wait_and_validate_login(page)
             
-            # Restaurar timeout padrão
-            page.set_default_timeout(self.timeout)
+            # Timeout será gerenciado individualmente por operação
             
             logger.info("✅ Login realizado com sucesso")
             return True
@@ -109,15 +107,57 @@ class SEFAZAuthenticator:
             raise LoginFailedException(f"Falha inesperada no login: {e}") from e
     
     async def _navigate_to_login_page(self, page: Page, sefaz_url: str) -> None:
-        """Navega para a página de login"""
-        logger.info("🌐 Navegando para página de login...")
-        try:
-            await page.goto(sefaz_url, wait_until="domcontentloaded")
-            await page.wait_for_load_state("networkidle", timeout=TIMEOUT_NETWORK_IDLE)
-        except TimeoutError as e:
-            raise PageLoadException(f"Timeout ao carregar página de login: {e}") from e
-        except Exception as e:
-            raise NavigationException(f"Erro ao navegar para página de login: {e}") from e
+        """Navega para a página de login com retry automático e comportamento humano"""
+        max_retries = 3
+        retry_delay = 10  # 10 segundos entre tentativas
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"🌐 Tentativa {attempt + 1}/{max_retries}: Navegando para página de login...")
+                
+                # Simular delay humano antes da navegação
+                if attempt > 0:
+                    import random
+                    human_delay = random.uniform(2.0, 5.0)
+                    logger.info(f"😴 Aguardando {human_delay:.1f}s (comportamento humano)...")
+                    import asyncio
+                    await asyncio.sleep(human_delay)
+                
+                # Navegar com timeout estendido
+                await page.goto(sefaz_url, wait_until="domcontentloaded", timeout=120000)
+                
+                # Simular leitura humana da página
+                import random
+                reading_time = random.uniform(1.5, 3.0)
+                logger.debug(f"👁️ Simulando leitura da página ({reading_time:.1f}s)...")
+                import asyncio
+                await asyncio.sleep(reading_time)
+                
+                # Aguardar carregamento completo com timeout estendido
+                await page.wait_for_load_state("networkidle", timeout=60000)
+                
+                logger.info("✅ Página de login carregada com sucesso")
+                return
+                
+            except Exception as e:
+                logger.warning(f"⚠️ Tentativa {attempt + 1} falhou: {e}")
+                
+                if attempt == max_retries - 1:
+                    # Última tentativa - lançar exceção
+                    if "Timeout" in str(e):
+                        raise NavigationException(
+                            f"Timeout ao navegar para página de login após {max_retries} tentativas. "
+                            f"Possível instabilidade do servidor SEFAZ: {e}"
+                        ) from e
+                    else:
+                        raise NavigationException(f"Erro ao navegar para página de login: {e}") from e
+                else:
+                    # Aguardar antes da próxima tentativa com variação humana
+                    import random
+                    wait_time = retry_delay + random.uniform(-2, 3)  # Variação humana
+                    logger.info(f"🕑 Aguardando {wait_time:.1f} segundos antes da próxima tentativa...")
+                    import asyncio
+                    await asyncio.sleep(wait_time)
     
     async def _simulate_page_reading(self, page: Page) -> None:
         """Simula comportamento humano de leitura da página"""
@@ -136,7 +176,7 @@ class SEFAZAuthenticator:
             raise ElementNotFoundException("Campo de usuário não encontrado")
         
         await self._focus_and_move_to_field(page, usuario_field)
-        await HumanBehavior.human_type(page, usuario_field, usuario)
+        await HumanBehavior.human_type_text(page, usuario_field, usuario)
         
         # Pausa entre campos
         logger.debug("⏸️ Pausa entre campos...")
@@ -149,7 +189,7 @@ class SEFAZAuthenticator:
             raise ElementNotFoundException("Campo de senha não encontrado")
         
         await self._focus_and_move_to_field(page, senha_field)
-        await HumanBehavior.human_type(page, senha_field, senha)
+        await HumanBehavior.human_type_text(page, senha_field, senha)
         
         # Verificar se senha foi digitada corretamente
         valor_digitado = await senha_field.input_value()

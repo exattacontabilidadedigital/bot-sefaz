@@ -123,10 +123,22 @@ export function showNotification(message, type = 'info') {
 
 export function initLucideIcons() {
     try {
-        if (typeof lucide !== 'undefined' && lucide.createIcons) {
-            lucide.createIcons();
-        }
+        // Aguardar um momento para garantir que o DOM esteja completamente carregado
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                // Verificar se existem elementos com data-lucide antes de inicializar
+                const lucideElements = document.querySelectorAll('[data-lucide]');
+                if (lucideElements.length > 0) {
+                    lucide.createIcons();
+                    console.log('✅ Ícones Lucide inicializados com sucesso');
+                } else {
+                    console.log('⚠️ Nenhum elemento Lucide encontrado');
+                }
+            } else {
+                console.warn('⚠️ Biblioteca Lucide não encontrada');
+            }
+        }, 100);
     } catch (error) {
-        console.warn('Erro ao inicializar ícones Lucide:', error);
+        console.warn('❌ Erro ao inicializar ícones Lucide:', error);
     }
 }

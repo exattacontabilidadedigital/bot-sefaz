@@ -8,6 +8,18 @@
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Suppress production warning for development
+        if (typeof window !== 'undefined') {
+            const originalWarn = console.warn;
+            console.warn = function(...args) {
+                if (args[0] && args[0].includes && args[0].includes('should not be used in production')) {
+                    return; // Suppress Tailwind production warning
+                }
+                originalWarn.apply(console, args);
+            };
+        }
+    </script>
     
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
@@ -233,11 +245,16 @@
                             <i data-lucide="x" class="h-4 w-4 mr-2"></i>
                             Limpar Filtros
                         </button>
-                        <div class="flex items-center justify-end">
+                        <div class="flex items-center justify-end space-x-2">
                             <span id="selectionInfo" class="text-sm text-blue-600 mr-4 hidden"></span>
                             <button id="addToQueueBtn" class="btn-primary" disabled>
                                 <i data-lucide="plus-circle" class="h-4 w-4 mr-2"></i>
                                 Adicionar à Fila
+                            </button>
+                            <button onclick="window.empresasUI.processarMensagensEmpresas()" 
+                                    id="messagebot-process-btn" class="btn-secondary" disabled>
+                                <i data-lucide="bot" class="h-4 w-4 mr-2"></i>
+                                Processar Mensagens
                             </button>
                         </div>
                     </div>
@@ -301,6 +318,22 @@
                                 <i data-lucide="chevron-right" class="h-4 w-4"></i>
                             </button>
                         </div>
+                    </div>
+                </div>
+                
+                <!-- MessageBot Progress Indicator -->
+                <div id="messagebot-progress" class="card hidden">
+                    <div class="px-6 py-4">
+                        <div class="flex items-center text-blue-600">
+                            <i data-lucide="loader" class="h-5 w-5 animate-spin mr-2"></i>
+                            <span id="messagebot-status" class="font-medium">Processando mensagens...</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mt-3">
+                            <div id="messagebot-progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-2">
+                            O MessageBot está processando as mensagens automaticamente. Isso pode levar alguns minutos por empresa.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -525,10 +558,10 @@
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empresa</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CNPJ</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IE</th>
+                                    <!--<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CNPJ</th>-->
+                                    <!--<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IE</th> -->
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                                    <!--<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>-->
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agendado Para</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recorrência</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adicionado</th>
@@ -660,17 +693,16 @@
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assunto</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enviada Por</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empresa</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Envio</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vencimento</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="mensagens-tbody" class="bg-white divide-y divide-gray-200">
                                 <tr>
-                                    <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+                                    <td colspan="6" class="px-6 py-4 text-center text-gray-500">
                                         <i data-lucide="loader" class="h-6 w-6 animate-spin inline mr-2"></i>
                                         Carregando mensagens...
                                     </td>

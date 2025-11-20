@@ -14,20 +14,20 @@ from playwright.async_api import Page, ElementHandle, Locator
 class HumanBehavior:
     """Classe para simulação de comportamento humano realista"""
     
-    # Constantes para delays (em milissegundos)
-    DELAY_MIN_HUMAN = 100
-    DELAY_MAX_HUMAN = 800
-    DELAY_MIN_TYPING = 50
-    DELAY_MAX_TYPING = 200
-    DELAY_MIN_MOUSE = 100
-    DELAY_MAX_MOUSE = 400
-    DELAY_MIN_PAUSE = 500
-    DELAY_MAX_PAUSE = 2000
+    # Constantes para delays (em milissegundos) - Mais humanísticas
+    DELAY_MIN_HUMAN = 150
+    DELAY_MAX_HUMAN = 1200
+    DELAY_MIN_TYPING = 80
+    DELAY_MAX_TYPING = 350
+    DELAY_MIN_MOUSE = 200
+    DELAY_MAX_MOUSE = 800
+    DELAY_MIN_PAUSE = 800
+    DELAY_MAX_PAUSE = 3500
     
     @staticmethod
     def random_delay(min_ms: int = DELAY_MIN_HUMAN, max_ms: int = DELAY_MAX_HUMAN) -> int:
         """
-        Gera delay aleatório para simular comportamento humano
+        Gera delay aleatório para simular comportamento humano com distribuição mais realista
         
         Args:
             min_ms: Tempo mínimo em milissegundos
@@ -36,7 +36,59 @@ class HumanBehavior:
         Returns:
             int: Delay em milissegundos
         """
-        return random.randint(min_ms, max_ms)
+        # Usar distribuição normal para comportamento mais humano
+        mean = (min_ms + max_ms) / 2
+        std_dev = (max_ms - min_ms) / 6  # 99.7% dos valores dentro do range
+        
+        delay = random.normalvariate(mean, std_dev)
+        return max(min_ms, min(max_ms, int(delay)))
+    
+    @staticmethod
+    async def human_type_text(page: Page, element: Union[ElementHandle, Locator], text: str, 
+                             clear_first: bool = True) -> None:
+        """
+        Digita texto com comportamento humano mais realista
+        
+        Args:
+            page: Página do Playwright
+            element: Elemento onde digitar
+            text: Texto a ser digitado
+            clear_first: Se deve limpar o campo antes
+        """
+        # Focar no elemento primeiro
+        await element.focus()
+        await asyncio.sleep(random.uniform(0.2, 0.8))
+        
+        # Limpar campo se solicitado
+        if clear_first:
+            await element.press('Control+a')
+            await asyncio.sleep(random.uniform(0.1, 0.3))
+        
+        # Digitar caractere por caractere com delays humanos
+        for i, char in enumerate(text):
+            # Simular algumas correções (typos) ocasionais
+            if random.random() < 0.02 and i > 0:  # 2% de chance de "erro"
+                wrong_char = random.choice('abcdefghijklmnopqrstuvwxyz')
+                await element.type(wrong_char)
+                await asyncio.sleep(random.uniform(0.1, 0.4))
+                await element.press('Backspace')
+                await asyncio.sleep(random.uniform(0.1, 0.3))
+            
+            # Digitar caractere correto
+            await element.type(char)
+            
+            # Delay entre caracteres com variação humanística
+            base_delay = random.uniform(0.08, 0.25)
+            
+            # Delays maiores após espaços e pontos
+            if char in [' ', '.', ',', ';']:
+                base_delay *= random.uniform(1.5, 2.5)
+            
+            # Pausas ocasionais (como se a pessoa parasse para pensar)
+            if random.random() < 0.05:  # 5% de chance
+                base_delay *= random.uniform(3, 8)
+            
+            await asyncio.sleep(base_delay)
     
     @staticmethod
     def random_position_in_element(width: float, height: float) -> tuple[float, float]:

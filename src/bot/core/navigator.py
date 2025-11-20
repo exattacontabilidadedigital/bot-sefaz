@@ -26,6 +26,83 @@ class SEFAZNavigator:
     def __init__(self):
         self.selectors = SEFAZSelectors()
     
+    async def check_pending_messages(self, page: Page) -> bool:
+        """
+        Verifica se há mensagens aguardando ciência na tela inicial
+        
+        Args:
+            page: Página do Playwright
+            
+        Returns:
+            bool: True se há mensagens aguardando ciência
+        """
+        try:
+            # Procurar pelo texto de aviso de mensagens
+            warning_text = "VOCÊ POSSUI"
+            awaiting_text = "AGUARDANDO CIÊNCIA"
+            
+            # Verificar se o texto de aviso está presente
+            page_content = await page.content()
+            
+            if warning_text in page_content and awaiting_text in page_content:
+                logger.info("📨 Detectadas mensagens aguardando ciência")
+                return True
+                
+            return False
+            
+        except Exception as e:
+            logger.warning(f"Erro ao verificar mensagens pendentes: {e}")
+            return False
+    
+    async def click_message_link(self, page: Page) -> bool:
+        """
+        Clica no link da mensagem aguardando ciência
+        
+        Args:
+            page: Página do Playwright
+            
+        Returns:
+            bool: True se clicou com sucesso
+        """
+        try:
+            # Procurar pelo link da mensagem
+            message_selectors = [
+                "a[href*='abrirMensagemDomicilio.do']",
+                "a[href*='abrirMensagem']",
+                "img[src*='ic_msg_nova.png']"
+            ]
+            
+            for selector in message_selectors:
+                try:
+                    element = await page.query_selector(selector)
+                    if element and await element.is_visible():
+                        logger.info(f"🎯 Clicando no link da mensagem: {selector}")
+                        
+                        # Se for uma imagem, clicar no link pai
+                        if "img" in selector:
+                            parent_link = await element.query_selector("xpath=..")
+                            if parent_link:
+                                await HumanBehavior.human_click(page, parent_link)
+                            else:
+                                await HumanBehavior.human_click(page, element)
+                        else:
+                            await HumanBehavior.human_click(page, element)
+                        
+                        await page.wait_for_timeout(HumanBehavior.random_delay(1000, 2000))
+                        logger.info("✅ Link da mensagem clicado com sucesso")
+                        return True
+                        
+                except Exception as e:
+                    logger.debug(f"Tentativa com seletor {selector} falhou: {e}")
+                    continue
+            
+            logger.warning("❌ Não foi possível encontrar link da mensagem")
+            return False
+            
+        except Exception as e:
+            logger.error(f"Erro ao clicar no link da mensagem: {e}")
+            return False
+    
     async def open_sistemas_menu(self, page: Page) -> bool:
         """
         Abre o menu 'Sistemas' usando diferentes estratégias

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Mensagens</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .mensagem { border: 1px solid #ddd; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .btn { padding: 8px 12px; margin: 5px; cursor: pointer; border: none; border-radius: 3px; }
+        .btn-delete { background-color: #dc2626; color: white; }
+        .btn-view { background-color: #3b82f6; color: white; }
+        .status-processada { background-color: #10b981; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; }
+        .status-nao-processada { background-color: #ef4444; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>Teste da Tabela de Mensagens</h1>
+    
+    <div id="mensagens"></div>
+    
+    <script>
+        // Simular dados de mensagens
+        const mensagens = [
+            {
+                id: 1,
+                assunto: 'Notificação de Débito',
+                nome_empresa: 'Empresa ABC Ltda',
+                data_envio: '2024-01-15',
+                tipo_mensagem: 'Débito',
+                processada: true,
+                lida: false,
+                data_ciencia: null
+            },
+            {
+                id: 3,
+                assunto: 'Comunicado Geral', 
+                nome_empresa: 'Empresa DEF Ltda',
+                data_envio: '2024-01-17',
+                tipo_mensagem: 'Comunicado',
+                processada: true,
+                lida: true,
+                data_ciencia: '2024-01-18'
+            }
+        ];
+        
+        function getStatusBadge(msg) {
+            // Verificar se a mensagem foi processada com sucesso
+            if (msg.processada) {
+                return '<span class="status-processada">✓ Processada</span>';
+            } else {
+                return '<span class="status-nao-processada">✗ Não Processada</span>';
+            }
+        }
+        
+        function deleteMensagem(id) {
+            if (confirm('Tem certeza que deseja excluir esta mensagem? Esta ação não pode ser desfeita.')) {
+                fetch(`/api/mensagens/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert('Mensagem excluída com sucesso!');
+                    location.reload();
+                })
+                .catch(error => {
+                    alert('Erro ao excluir mensagem: ' + error.message);
+                });
+            }
+        }
+        
+        function verMensagem(id) {
+            alert(`Ver detalhes da mensagem ${id}`);
+        }
+        
+        // Renderizar mensagens
+        const container = document.getElementById('mensagens');
+        mensagens.forEach(msg => {
+            const statusBadge = getStatusBadge(msg);
+            const div = document.createElement('div');
+            div.className = 'mensagem';
+            div.innerHTML = `
+                <h3>${msg.assunto}</h3>
+                <p><strong>Empresa:</strong> ${msg.nome_empresa}</p>
+                <p><strong>Data:</strong> ${msg.data_envio}</p>
+                <p><strong>Tipo:</strong> ${msg.tipo_mensagem}</p>
+                <p><strong>Status:</strong> ${statusBadge}</p>
+                <div>
+                    <button class="btn btn-view" onclick="verMensagem(${msg.id})">👁️ Ver</button>
+                    <button class="btn btn-delete" onclick="deleteMensagem(${msg.id})">🗑️ Excluir</button>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    </script>
+</body>
+</html>

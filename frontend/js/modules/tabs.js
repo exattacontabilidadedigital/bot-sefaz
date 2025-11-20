@@ -3,10 +3,23 @@ import { appState } from './state.js';
 
 export function switchTab(tabName) {
     console.log('🔄 Trocando para aba:', tabName);
+    
+    if (!tabName) {
+        console.error('Nome da aba não fornecido');
+        return;
+    }
+    
     appState.currentTab = tabName;
     
     // Atualizar botões das abas
-    document.querySelectorAll('[data-tab]').forEach(btn => {
+    const tabButtons = document.querySelectorAll('[data-tab]');
+    if (tabButtons.length === 0) {
+        console.warn('Nenhum botão de aba encontrado');
+        return;
+    }
+    
+    tabButtons.forEach(btn => {
+        if (!btn || !btn.dataset) return;
         const isActive = btn.dataset.tab === tabName;
         btn.classList.toggle('border-blue-500', isActive);
         btn.classList.toggle('text-blue-600', isActive);
@@ -17,7 +30,14 @@ export function switchTab(tabName) {
     });
     
     // Atualizar painéis de conteúdo
-    document.querySelectorAll('[data-tab-content]').forEach(panel => {
+    const tabPanels = document.querySelectorAll('[data-tab-content]');
+    if (tabPanels.length === 0) {
+        console.warn('Nenhum painel de aba encontrado');
+        return;
+    }
+    
+    tabPanels.forEach(panel => {
+        if (!panel || !panel.dataset) return;
         const isActive = panel.dataset.tabContent === tabName;
         console.log(`   ${panel.dataset.tabContent}: ${isActive ? 'VISIBLE' : 'HIDDEN'}`);
         panel.classList.toggle('hidden', !isActive);

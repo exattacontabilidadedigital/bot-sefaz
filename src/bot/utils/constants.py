@@ -5,11 +5,11 @@ Constantes e seletores CSS para o bot SEFAZ
 # URLs
 URL_SEFAZ_LOGIN = 'https://sefaznet.sefaz.ma.gov.br/sefaznet/login.do?method=prepareLogin'
 
-# Timeouts (em milissegundos)
-TIMEOUT_DEFAULT = 30000
-TIMEOUT_NAVIGATION = 30000
-TIMEOUT_ELEMENT = 10000
-TIMEOUT_NETWORK_IDLE = 30000
+# Timeouts (em milissegundos) - Aumentados para lidar com instabilidade do SEFAZ
+TIMEOUT_DEFAULT = 60000      # 1 minuto (era 30s)
+TIMEOUT_NAVIGATION = 120000  # 2 minutos (era 30s) 
+TIMEOUT_ELEMENT = 30000      # 30 segundos (era 10s)
+TIMEOUT_NETWORK_IDLE = 60000 # 1 minuto (era 30s)
 
 # Delays (em milissegundos)
 DELAY_MIN_HUMAN = 50
@@ -18,9 +18,9 @@ DELAY_BETWEEN_FIELDS = 500
 DELAY_AFTER_CLICK = 1000
 DELAY_PAGE_LOAD = 2000
 
-# Retry
-MAX_RETRIES = 2
-RETRY_DELAY_SECONDS = 5
+# Retry - Aumentado para maior robustez
+MAX_RETRIES = 3              # Aumentado de 2 para 3
+RETRY_DELAY_SECONDS = 10     # Aumentado de 5 para 10
 
 # Seletores CSS - Login
 SELECTOR_LOGIN_USER = "input[name='CPF']"

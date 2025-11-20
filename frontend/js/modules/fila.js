@@ -39,16 +39,16 @@ function updateFilaTable() {
                 <td class="px-6 py-4">
                     <div class="text-sm font-medium text-gray-900">${job.nome_empresa || 'N/A'}</div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <!--<td class="px-6 py-4 whitespace-nowrap">
                     <div class="text-sm text-gray-900">${utils.formatCNPJ(job.cnpj)}</div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                </td> -->
+                <!--<td class="px-6 py-4 whitespace-nowrap">
                     <div class="text-sm text-gray-900">${job.inscricao_estadual || 'N/A'}</div>
-                </td>
+                </td> -->
                 <td class="px-6 py-4 whitespace-nowrap">
                     ${utils.getJobStatusBadge(job.status)}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <!-- <td class="px-6 py-4 whitespace-nowrap">
                     <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                         job.tipo_execucao === 'agendada' 
                             ? 'bg-purple-100 text-purple-800' 
@@ -56,7 +56,7 @@ function updateFilaTable() {
                     }">
                         ${job.tipo_execucao === 'agendada' ? 'Agendada' : 'Imediata'}
                     </span>
-                </td>
+                </td> -->
                 <td class="px-6 py-4 whitespace-nowrap">
                     <div class="text-sm text-gray-900">
                         ${job.data_agendada ? utils.formatDateTime(job.data_agendada) : '-'}
@@ -98,6 +98,13 @@ function updateFilaTable() {
                                 class="text-orange-600 hover:text-orange-900"
                                 title="Cancelar">
                             <i data-lucide="x-circle" class="h-4 w-4"></i>
+                        </button>
+                    ` : ''}
+                    ${job.status === 'failed' ? `
+                        <button onclick="window.filaUI.reprocessJob(${job.id})" 
+                                class="text-green-600 hover:text-green-900"
+                                title="Reprocessar">
+                            <i data-lucide="play" class="h-4 w-4"></i>
                         </button>
                     ` : ''}
                 </td>
@@ -158,6 +165,46 @@ export async function cancelJob(jobId) {
     } catch (error) {
         console.error('Erro ao cancelar job:', error);
         utils.showNotification(error.message || 'Erro ao cancelar job', 'error');
+    }
+}
+
+export async function reprocessJob(jobId) {
+    if (!confirm('Tem certeza que deseja reprocessar este job que falhou?')) {
+        return;
+    }
+    
+    try {
+        const result = await api.reprocessarJob(jobId);
+        await loadFila();
+        utils.showNotification(result.message || 'Job reprocessado com sucesso', 'success');
+        
+        // Iniciar o processamento imediatamente após reprocessar
+        try {
+            await api.iniciarProcessamento();
+            utils.showNotification('Bot iniciado para processar o job!', 'info');
+            
+            // Atualizar os botões de controle do processamento
+            const startBtn = document.getElementById('startProcessingBtn');
+            const stopBtn = document.getElementById('stopProcessingBtn');
+            const statusIndicator = document.getElementById('processingStatusIndicator');
+            const statusText = document.getElementById('processingStatusText');
+            
+            if (startBtn) startBtn.disabled = true;
+            if (stopBtn) stopBtn.disabled = false;
+            if (statusIndicator) {
+                statusIndicator.className = 'h-3 w-3 bg-green-500 rounded-full animate-pulse';
+            }
+            if (statusText) statusText.textContent = 'Processando';
+            
+            // Recarregar a fila após um pequeno delay para mostrar o status atualizado
+            setTimeout(() => loadFila(), 2000);
+        } catch (processError) {
+            console.warn('Erro ao iniciar processamento automaticamente:', processError);
+            // Não mostrar erro para o usuário, pois o reprocessamento foi bem-sucedido
+        }
+    } catch (error) {
+        console.error('Erro ao reprocessar job:', error);
+        utils.showNotification(error.message || 'Erro ao reprocessar job', 'error');
     }
 }
 
