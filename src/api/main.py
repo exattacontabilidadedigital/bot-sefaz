@@ -99,6 +99,99 @@ def decrypt_password(encrypted_password: str) -> str:
     """Retorna a senha sem descriptografia"""
     return encrypted_password
 
+# Inicializar banco de dados
+def init_database():
+    """Inicializa as tabelas do banco de dados se não existirem"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Tabela de consultas
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS consultas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER,
+            inscricao_estadual TEXT,
+            cpf_socio TEXT,
+            data_consulta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            status TEXT,
+            situacao_cadastral TEXT,
+            data_inicio_atividade TEXT,
+            cnae_principal TEXT,
+            regime_apuracao TEXT,
+            erro TEXT,
+            FOREIGN KEY (empresa_id) REFERENCES empresas (id)
+        )
+    """)
+    
+    # Tabela de mensagens
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS mensagens_sefaz (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            inscricao_estadual TEXT NOT NULL,
+            cpf_socio TEXT,
+            nome_empresa TEXT,
+            enviada_por TEXT,
+            data_envio TEXT,
+            assunto TEXT,
+            classificacao TEXT,
+            tributo TEXT,
+            tipo_mensagem TEXT,
+            numero_documento TEXT,
+            vencimento TEXT,
+            data_leitura TEXT,
+            conteudo_mensagem TEXT,
+            conteudo_html TEXT,
+            competencia_dief TEXT,
+            status_dief TEXT,
+            chave_dief TEXT,
+            protocolo_dief TEXT,
+            link_recibo TEXT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            processada INTEGER DEFAULT 0
+        )
+    """)
+    
+    # Tabela de empresas
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS empresas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome_empresa TEXT NOT NULL,
+            cnpj TEXT UNIQUE NOT NULL,
+            inscricao_estadual TEXT UNIQUE NOT NULL,
+            cpf_socio TEXT NOT NULL,
+            senha TEXT NOT NULL,
+            observacoes TEXT,
+            ativo INTEGER DEFAULT 1,
+            data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
+    # Tabela de fila de jobs
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS queue_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER NOT NULL,
+            tipo TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            prioridade INTEGER DEFAULT 5,
+            tentativas INTEGER DEFAULT 0,
+            max_tentativas INTEGER DEFAULT 3,
+            data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            data_inicio TIMESTAMP,
+            data_conclusao TIMESTAMP,
+            erro TEXT,
+            resultado TEXT,
+            FOREIGN KEY (empresa_id) REFERENCES empresas (id)
+        )
+    """)
+    
+    conn.commit()
+    conn.close()
+    print("✅ Banco de dados inicializado com sucesso")
+
+# Inicializar banco na inicialização da aplicação
+init_database()
+
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
