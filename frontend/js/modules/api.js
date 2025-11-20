@@ -304,3 +304,11 @@ export async function cancelarAgendamento(jobId) {
     }
     return await response.json();
 }
+
+export async function fetchCredenciaisEmpresa(empresaId) {
+    const response = await fetch(`${API_BASE_URL}/empresas/${empresaId}/credenciais`);
+    if (!response.ok) {
+        throw new Error('Erro ao buscar credenciais da empresa');
+    }
+    return await response.json();
+}

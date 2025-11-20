@@ -65,17 +65,24 @@ function updateEmpresasTable(empresas) {
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div class="flex space-x-2 justify-end">
+                        <button onclick="window.empresasUI.copyCredentials(${empresa.id})" 
+                                class="text-purple-600 hover:text-purple-900"
+                                title="Copiar dados de acesso (CPF e senha)">
+                            <i data-lucide="copy" class="h-4 w-4"></i>
+                        </button>
                         <button onclick="window.empresasUI.autoLoginEmpresa('${empresa.inscricao_estadual}')" 
                                 class="text-green-600 hover:text-green-900"
                                 title="Auto Login SEFAZ">
                             <i data-lucide="log-in" class="h-4 w-4"></i>
                         </button>
                         <button onclick="window.empresasUI.editEmpresa(${empresa.id})" 
-                                class="text-blue-600 hover:text-blue-900">
+                                class="text-blue-600 hover:text-blue-900"
+                                title="Editar empresa">
                             <i data-lucide="edit" class="h-4 w-4"></i>
                         </button>
                         <button onclick="window.empresasUI.deleteEmpresa(${empresa.id})" 
-                                class="text-red-600 hover:text-red-900">
+                                class="text-red-600 hover:text-red-900"
+                                title="Excluir empresa">
                             <i data-lucide="trash-2" class="h-4 w-4"></i>
                         </button>
                     </div>
@@ -913,4 +920,80 @@ export async function autoLoginEmpresa(inscricaoEstadual) {
         console.error('Erro ao abrir SEFAZ:', error);
         utils.showNotification('Erro ao buscar credenciais da empresa', 'error');
     }
+}
+
+export async function copyCredentials(empresaId) {
+    try {
+        // Buscar credenciais da empresa
+        const credenciais = await api.fetchCredenciaisEmpresa(empresaId);
+        
+        // Formatar os dados para cópia
+        const dadosAcesso = `CPF: ${utils.formatCPF(credenciais.cpf_socio)}\nSenha: ${credenciais.senha}`;
+        
+        // Copiar para clipboard
+        try {
+            await navigator.clipboard.writeText(dadosAcesso);
+            utils.showNotification(`Dados de acesso copiados para a área de transferência!\n${credenciais.nome_empresa}`, 'success');
+        } catch (clipboardError) {
+            // Fallback para navegadores que não suportam clipboard API
+            const textArea = document.createElement('textarea');
+            textArea.value = dadosAcesso;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+                utils.showNotification(`Dados de acesso copiados!\n${credenciais.nome_empresa}`, 'success');
+            } catch (execError) {
+                console.error('Erro ao copiar:', execError);
+                // Mostrar modal com os dados para cópia manual
+                showCredentialsModal(credenciais);
+            }
+            
+            document.body.removeChild(textArea);
+        }
+        
+    } catch (error) {
+        console.error('Erro ao buscar credenciais:', error);
+        utils.showNotification('Erro ao buscar dados de acesso da empresa', 'error');
+    }
+}
+
+function showCredentialsModal(credenciais) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50';
+    modal.innerHTML = `
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Dados de Acesso</h3>
+                <div class="bg-gray-50 p-4 rounded-md mb-4">
+                    <p class="text-sm font-medium text-gray-700 mb-2">Empresa: ${credenciais.nome_empresa}</p>
+                    <p class="text-sm text-gray-600 mb-2">CPF: <span class="font-mono">${utils.formatCPF(credenciais.cpf_socio)}</span></p>
+                    <p class="text-sm text-gray-600">Senha: <span class="font-mono">${credenciais.senha}</span></p>
+                </div>
+                <p class="text-xs text-gray-500 mb-4">Copie manualmente os dados acima</p>
+                <div class="flex justify-end">
+                    <button onclick="this.closest('.fixed').remove()" 
+                            class="btn-secondary">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Fechar modal ao clicar fora
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+    
+    utils.initLucideIcons();
 }
