@@ -30,7 +30,10 @@
     "matches": [
       "http://localhost:*/*",
       "https://localhost:*/*",
-      "*://127.0.0.1:*/*",
+      "http://127.0.0.1:*/*",
+      "https://127.0.0.1:*/*",
+      "http://localhost:8000/*",
+      "https://localhost:8000/*",
       "*://*.seudominio.com/*",
       "*://*.ngrok.io/*",
       "*://*.herokuapp.com/*"

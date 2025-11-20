@@ -454,6 +454,69 @@ export async function reloadExtension() {
     }
 }
 
+// Função de teste específica para comunicação
+export async function testCommunication() {
+    console.log('🧪 === TESTE ESPECÍFICO DE COMUNICAÇÃO ===');
+    
+    if (typeof chrome === 'undefined' || !chrome.runtime) {
+        console.log('❌ Chrome runtime API não disponível');
+        return false;
+    }
+    
+    if (EXTENSION_ID === 'your-extension-id-here') {
+        console.log('❌ ID da extensão não configurado');
+        return false;
+    }
+    
+    console.log('🎯 Testando com ID:', EXTENSION_ID);
+    console.log('🌐 Origem:', window.location.origin);
+    console.log('🔗 URL:', window.location.href);
+    
+    return new Promise((resolve) => {
+        const startTime = Date.now();
+        
+        // Ping específico com dados detalhados
+        const message = {
+            action: 'ping',
+            timestamp: startTime,
+            origin: window.location.origin,
+            url: window.location.href,
+            userAgent: navigator.userAgent
+        };
+        
+        console.log('📤 Enviando mensagem:', message);
+        
+        try {
+            chrome.runtime.sendMessage(EXTENSION_ID, message, (response) => {
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+                
+                console.log('⏱️ Duração do teste:', duration + 'ms');
+                
+                if (chrome.runtime.lastError) {
+                    console.log('❌ Erro na comunicação:', chrome.runtime.lastError);
+                    console.log('💡 Possíveis causas:');
+                    console.log('   1. Extensão não carregada');
+                    console.log('   2. ID incorreto');
+                    console.log('   3. Origem não permitida');
+                    console.log('   4. Service worker inativo');
+                    resolve(false);
+                } else if (response) {
+                    console.log('✅ Resposta recebida:', response);
+                    console.log('🎉 Comunicação funcionando!');
+                    resolve(true);
+                } else {
+                    console.log('📭 Resposta vazia');
+                    resolve(false);
+                }
+            });
+        } catch (error) {
+            console.error('💥 Erro crítico:', error);
+            resolve(false);
+        }
+    });
+}
+
 // Criar interface de configuração da extensão
 function createExtensionConfigInterface() {
     // Verificar se já existe ID configurado

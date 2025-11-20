@@ -3,6 +3,14 @@ console.log('🚀 SEFAZ Auto Login - Background script iniciado');
 console.log('🆔 Extension ID:', chrome.runtime.id);
 console.log('📋 Manifest:', chrome.runtime.getManifest());
 
+// Verificar se externally_connectable está configurado
+const manifest = chrome.runtime.getManifest();
+if (manifest.externally_connectable) {
+    console.log('🔗 Externally connectable configurado:', manifest.externally_connectable.matches);
+} else {
+    console.warn('⚠️ Externally connectable NÃO configurado!');
+}
+
 // Variáveis globais
 let activeConsultaTab = null;
 let consultaInProgress = false;
@@ -31,19 +39,44 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Listener para mensagens externas (do frontend web)
 chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
-    console.log('🌐 Mensagem externa recebida de:', sender.origin);
-    console.log('📦 Dados da mensagem:', JSON.stringify(request, null, 2));
+    console.log('🌐 === MENSAGEM EXTERNA RECEBIDA ===');
+    console.log('📍 Origem:', sender.origin);
+    console.log('🔗 URL completa:', sender.url);
+    console.log('📦 Dados:', JSON.stringify(request, null, 2));
+    console.log('⏰ Timestamp:', new Date().toISOString());
+    
+    // Verificar origem permitida
+    const allowedOrigins = [
+        'http://localhost:8000',
+        'https://localhost:8000', 
+        'http://127.0.0.1:8000',
+        'https://127.0.0.1:8000'
+    ];
+    
+    if (!allowedOrigins.includes(sender.origin)) {
+        console.warn('⚠️ Origem não permitida:', sender.origin);
+        sendResponse({ success: false, error: 'Origem não permitida: ' + sender.origin });
+        return false;
+    }
     
     switch (request.action) {
         case 'ping':
-            console.log('📍 Ping recebido, respondendo com pong...');
-            const response = { pong: true, status: 'active', timestamp: Date.now() };
-            console.log('📤 Enviando resposta:', response);
+            console.log('📍 === PING RECEBIDO ===');
+            const response = { 
+                pong: true, 
+                status: 'active', 
+                timestamp: Date.now(),
+                extensionId: chrome.runtime.id,
+                version: '1.1.0'
+            };
+            console.log('📤 Enviando resposta PING:', response);
             sendResponse(response);
+            console.log('✅ Resposta PING enviada com sucesso');
             return false; // Resposta síncrona
             
         case 'executeConsulta':
-            console.log('🎯 ExecuteConsulta recebido, iniciando...');
+            console.log('🎯 === EXECUTE CONSULTA RECEBIDO ===');
+            console.log('📋 Dados da consulta:', request.data);
             handleExecuteConsulta(request.data)
                 .then(result => {
                     console.log('✅ Consulta concluída com sucesso:', result);
