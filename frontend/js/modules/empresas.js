@@ -65,22 +65,22 @@ function updateEmpresasTable(empresas) {
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div class="flex space-x-2 justify-end">
-                        <button onclick="window.empresasUI.copyCredentials(${empresa.id})" 
+                        <button onclick="window.empresasUI.copyCredentials(${empresa.id})"
                                 class="text-purple-600 hover:text-purple-900"
                                 title="Copiar dados de acesso (CPF e senha)">
                             <i data-lucide="copy" class="h-4 w-4"></i>
                         </button>
-                        <button onclick="window.empresasUI.autoLoginEmpresa('${empresa.inscricao_estadual}')" 
+                        <button onclick="window.empresasUI.autoLoginEmpresa('${empresa.inscricao_estadual}')"
                                 class="text-green-600 hover:text-green-900"
                                 title="Auto Login SEFAZ">
                             <i data-lucide="log-in" class="h-4 w-4"></i>
                         </button>
-                        <button onclick="window.empresasUI.editEmpresa(${empresa.id})" 
+                        <button onclick="window.empresasUI.editEmpresa(${empresa.id})"
                                 class="text-blue-600 hover:text-blue-900"
                                 title="Editar empresa">
                             <i data-lucide="edit" class="h-4 w-4"></i>
                         </button>
-                        <button onclick="window.empresasUI.deleteEmpresa(${empresa.id})" 
+                        <button onclick="window.empresasUI.deleteEmpresa(${empresa.id})"
                                 class="text-red-600 hover:text-red-900"
                                 title="Excluir empresa">
                             <i data-lucide="trash-2" class="h-4 w-4"></i>
@@ -89,7 +89,7 @@ function updateEmpresasTable(empresas) {
                 </td>
             </tr>
         `).join('');
-        
+
         utils.initLucideIcons();
         setupCheckboxListeners();
     }

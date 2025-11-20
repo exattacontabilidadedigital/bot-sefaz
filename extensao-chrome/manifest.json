@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "Portal SEFAZ Automator",
-  "version": "2.0.0",
-  "description": "Automatizador de consultas no Portal SEFAZ - ID Renovado 2025",
+  "name": "SEFAZ-MA Auto Login",
+  "version": "1.1.0",
+  "description": "Preenche automaticamente login do SEFAZ-MA com modo visual",
   "permissions": [
     "storage",
     "activeTab",
-    "tabs"
+    "tabs",
+    "management"
   ],
   "host_permissions": [
     "*://sefaznet.sefaz.ma.gov.br/*",
@@ -18,24 +19,27 @@
         "*://sefaznet.sefaz.ma.gov.br/*",
         "*://sefaz.ma.gov.br/*"
       ],
-      "js": ["content-simple.js"],
+      "js": ["content.js"],
       "run_at": "document_idle"
     }
   ],
   "background": {
-    "service_worker": "background-simple.js"
+    "service_worker": "background.js"
   },
   "externally_connectable": {
     "matches": [
-      "http://localhost:3000/*",
-      "http://localhost:8000/*",
-      "http://127.0.0.1:3000/*",
-      "http://127.0.0.1:8000/*"
+      "http://localhost:*/*",
+      "https://localhost:*/*",
+      "*://127.0.0.1:*/*",
+      "*://*.seudominio.com/*",
+      "*://*.ngrok.io/*",
+      "*://*.herokuapp.com/*"
     ]
   },
-  "action": {
-    "default_popup": "popup.html",
-    "default_title": "Portal SEFAZ Automator"
-  },
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1qkNSxpYjFrn5g0F1n2q3X9wFhN8xY2VuZ3lKjM4QgPvWt6RxSdFnEr7Ys2TcLp9XqG8hN5YrJ4mK7LzVpQ3E6uR8TyH2NcX5QgJ9PtV4LkNfR2M7WzKsG3Y8UvQ6RjF9NhT5XqL7JdE4KgP2VtWrY8ZcN3FmH6LqR9TyJ5XgK2NvM8WpL4QrT7YsF6HgN2VzP9KjL3QtR5XyM8WvG4NpT2YqL9FjH6RsN3VzT8KgP5XtW7YcF2LqR4MgN6VzP8KjL2QtR9XyM5WvG7NpT4YqL8FjH3RsN6VzT5KgP2XtW9YcF4LqR7MgN3VzP6KjL5QtR8XyM2WvG9NpT7YqL4FjH6RsN2VzT9KgP5XtW3YcF7LqR5"
+  "web_accessible_resources": [
+    {
+      "resources": ["*.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
