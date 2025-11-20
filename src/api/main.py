@@ -626,18 +626,26 @@ async def excluir_empresa(empresa_id: int):
         
         print(f"✅ Empresa {empresa_id} encontrada")
         
-        # Verificar se existem consultas vinculadas
-        cursor.execute("SELECT COUNT(*) FROM consultas WHERE empresa_id = ?", (empresa_id,))
+        # Verificar se existem consultas vinculadas pela inscricao_estadual
+        cursor.execute("SELECT inscricao_estadual FROM empresas WHERE id = ?", (empresa_id,))
+        ie = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM consultas WHERE inscricao_estadual = ?", (ie,))
         total_consultas = cursor.fetchone()[0]
         print(f"📊 Total de consultas vinculadas: {total_consultas}")
         
-        if total_consultas > 0:
-            # Apenas desativar ao invés de excluir se houver consultas
+        # Verificar jobs na fila
+        cursor.execute("SELECT COUNT(*) FROM queue_jobs WHERE empresa_id = ?", (empresa_id,))
+        total_jobs = cursor.fetchone()[0]
+        print(f"📊 Total de jobs vinculados: {total_jobs}")
+        
+        if total_consultas > 0 or total_jobs > 0:
+            # Apenas desativar ao invés de excluir se houver consultas ou jobs
             cursor.execute("UPDATE empresas SET ativo = 0 WHERE id = ?", (empresa_id,))
-            message = "Empresa desativada (possui consultas vinculadas)"
+            message = f"Empresa desativada (possui {total_consultas} consultas e {total_jobs} jobs vinculados)"
             print(f"⚠️ {message}")
         else:
-            # Excluir permanentemente se não houver consultas
+            # Excluir permanentemente se não houver consultas nem jobs
             cursor.execute("DELETE FROM empresas WHERE id = ?", (empresa_id,))
             message = "Empresa excluída com sucesso"
             print(f"✅ {message}")
