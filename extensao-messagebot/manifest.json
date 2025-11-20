@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "SEFAZ MessageBot",
+  "version": "1.0.0",
+  "description": "Processamento automatico de mensagens SEFAZ em modo visual",
+  "permissions": [],
+  "host_permissions": [
+    "https://sefaznet.sefaz.ma.gov.br/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://sefaznet.sefaz.ma.gov.br/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "externally_connectable": {
+    "matches": [
+      "http://localhost:*/*",
+      "http://127.0.0.1:*/*"
+    ]
+  }
+}

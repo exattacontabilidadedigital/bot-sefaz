@@ -23,7 +23,7 @@
     }
   ],
   "background": {
-    "service_worker": "background_simple.js"
+    "service_worker": "background.js"
   },
   "externally_connectable": {
     "matches": [

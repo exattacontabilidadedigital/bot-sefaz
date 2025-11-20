@@ -3,6 +3,89 @@ console.log('SEFAZ Auto Login - Extensao carregada');
 console.log('URL da pagina:', window.location.href);
 console.log('Origin:', window.location.origin);
 
+// Funcao auxiliar
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Listener para mensagens do frontend (postMessage) - MODO ORIGINAL
+window.addEventListener('message', async (event) => {
+    console.log('Mensagem recebida (postMessage):', event.data);
+    
+    // Auto Login SEFAZ (modo original mantido para compatibilidade)
+    if (event.data.type === 'SEFAZ_AUTO_LOGIN') {
+        console.log('Auto login solicitado (modo original)');
+        
+        const { cpf, senha, linkRecibo } = event.data;
+        
+        await sleep(1000);
+        
+        // Executar login original
+        const campoUsuario = document.querySelector('input[name="identificacao"]');
+        if (campoUsuario) {
+            campoUsuario.value = cpf;
+            campoUsuario.dispatchEvent(new Event('input', { bubbles: true }));
+            console.log('CPF preenchido (modo original)');
+        }
+        
+        const campoSenha = document.querySelector('input[name="senha"]');
+        if (campoSenha) {
+            campoSenha.value = senha;
+            campoSenha.dispatchEvent(new Event('input', { bubbles: true }));
+            console.log('Senha preenchida (modo original)');
+        }
+        
+        await sleep(500);
+        
+        const botaoEntrar = document.querySelector('button[type="submit"]');
+        if (botaoEntrar) {
+            botaoEntrar.click();
+            console.log('Login iniciado (modo original)');
+            
+            if (linkRecibo) {
+                await aguardarLoginEAbrirRecibo(linkRecibo);
+            }
+        }
+    }
+});
+
+// Funcao original mantida para compatibilidade
+async function aguardarLoginEAbrirRecibo(linkRecibo) {
+    console.log('Aguardando login (modo original)...');
+    
+    let tentativas = 0;
+    const maxTentativas = 40;
+    
+    const intervalo = setInterval(() => {
+        tentativas++;
+        
+        const formularioLogin = document.querySelector('input[name="identificacao"]');
+        const paginaPrincipal = document.querySelector('#principal, .menu-principal, #menu');
+        
+        if (!formularioLogin || paginaPrincipal) {
+            clearInterval(intervalo);
+            console.log('Login completado (modo original)');
+            
+            if (window.opener && linkRecibo) {
+                try {
+                    window.opener.postMessage({
+                        type: 'SEFAZ_LOGIN_COMPLETO',
+                        linkRecibo: linkRecibo
+                    }, '*');
+                    console.log('Gatilho enviado (modo original)');
+                } catch (error) {
+                    console.error('Erro ao enviar gatilho:', error);
+                }
+            }
+        }
+        
+        if (tentativas >= maxTentativas) {
+            clearInterval(intervalo);
+            console.error('Timeout login (modo original)');
+        }
+    }, 500);
+}
+
 // Listener para mensagens da extensao (modo visual)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('Mensagem da extensao recebida:', request);

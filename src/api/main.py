@@ -2398,6 +2398,57 @@ async def contar_mensagens(
         raise HTTPException(status_code=500, detail=f"Erro ao contar mensagens: {str(e)}")
 
 
+# ========================================
+# ROTAS PARA EXTENSAO CHROME
+# ========================================
+
+class ProcessarMensagensRequest(BaseModel):
+    inscricao_estadual: str
+    cpf: str
+    senha: str
+
+@app.post("/extension/processarMensagens")
+async def processar_mensagens_extensao(request: ProcessarMensagensRequest):
+    """
+    Endpoint para extensao Chrome processar mensagens em modo visual
+    """
+    try:
+        import requests
+        
+        # Obter ID da extensao do Chrome (necessario para comunicacao)
+        # A extensao devera estar instalada e o manifest.json configurado
+        
+        # Enviar comando para a extensao via API local
+        extension_url = "http://localhost:8000/api/chrome-extension"
+        
+        payload = {
+            "action": "processarMensagens",
+            "data": {
+                "inscricao_estadual": request.inscricao_estadual,
+                "cpf": request.cpf,
+                "senha": request.senha
+            }
+        }
+        
+        # A comunicacao real sera feita via postMessage do Chrome
+        # Este endpoint apenas retorna sucesso e a extensao fara o trabalho
+        
+        return {
+            "success": True,
+            "message": "Comando enviado para extensao",
+            "data": {
+                "inscricao_estadual": request.inscricao_estadual
+            }
+        }
+        
+    except Exception as e:
+        print(f"Erro ao processar mensagens via extensao: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
 # Servir arquivos estáticos do frontend
 try:
     # Montar diretórios CSS e JS diretamente

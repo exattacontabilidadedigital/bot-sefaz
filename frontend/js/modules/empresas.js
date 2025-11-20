@@ -75,6 +75,11 @@ function updateEmpresasTable(empresas) {
                                 title="Auto Login SEFAZ">
                             <i data-lucide="log-in" class="h-4 w-4"></i>
                         </button>
+                        <button onclick="window.empresasUI.processarMensagensVisual('${empresa.inscricao_estadual}')" 
+                                class="text-indigo-600 hover:text-indigo-900"
+                                title="Processar Mensagens (Modo Visual)">
+                            <i data-lucide="mail-check" class="h-4 w-4"></i>
+                        </button>
                         <button onclick="window.empresasUI.editEmpresa(${empresa.id})" 
                                 class="text-blue-600 hover:text-blue-900"
                                 title="Editar empresa">
@@ -932,6 +937,74 @@ export async function autoLoginEmpresa(inscricaoEstadual) {
     }
 }
 
+export async function processarMensagensVisual(inscricaoEstadual) {
+    try {
+        if (!inscricaoEstadual) {
+            utils.showNotification('Inscricao estadual nao informada', 'error');
+            return;
+        }
+
+        // Buscar credenciais da empresa
+        const empresa = await api.get(`/api/empresas/credenciais-por-ie/${inscricaoEstadual}`);
+        
+        const cpf = empresa.cpf_socio;
+        const senha = empresa.senha;
+
+        if (!senha) {
+            utils.showNotification('Senha nao disponivel para esta empresa', 'error');
+            return;
+        }
+
+        utils.showNotification('Iniciando MessageBot em modo visual...', 'info');
+
+        // USAR EXTENSÃO EM VEZ DE POSTMESSAGE
+        // postMessage não funciona entre origens diferentes (CORS)
+        // Usar chrome.runtime.sendMessage para a extensão MessageBot
+        
+        const extensionId = 'aknjpjibaoihfeeiojidhdofaldhdebd'; // ID da extensão MessageBot
+        
+        console.log('📤 Enviando comando para extensão MessageBot...');
+        console.log('📤 Extension ID:', extensionId);
+        console.log('📤 Dados:', { cpf, senha, inscricaoEstadual });
+        
+        chrome.runtime.sendMessage(extensionId, {
+            action: 'processarMensagens',
+            dados: {
+                cpf: cpf,
+                cpfSocio: cpf,
+                senha: senha,
+                inscricao_estadual: inscricaoEstadual,
+                inscricaoEstadual: inscricaoEstadual
+            }
+        }, (response) => {
+            console.log('📥 Resposta da extensão:', response);
+            
+            if (chrome.runtime.lastError) {
+                console.error('❌ Erro ao comunicar com extensão:', chrome.runtime.lastError);
+                utils.showNotification('Erro ao comunicar com extensão MessageBot', 'error');
+                return;
+            }
+            
+            if (response && response.success) {
+                const res = response.data;
+                utils.showNotification(
+                    `MessageBot concluído! Total: ${res.total}, Processadas: ${res.processadas}, Erros: ${res.erros}`,
+                    'success'
+                );
+            } else {
+                utils.showNotification(
+                    `Erro no MessageBot: ${response?.error || 'Erro desconhecido'}`,
+                    'error'
+                );
+            }
+        });
+
+    } catch (error) {
+        console.error('Erro ao iniciar MessageBot:', error);
+        utils.showNotification('Erro ao iniciar MessageBot', 'error');
+    }
+}
+
 export async function copyCredentials(empresaId) {
     try {
         // Buscar credenciais da empresa
@@ -1187,6 +1260,7 @@ const empresasUI = {
     initializeCSVImport,
     importarCSV,
     autoLoginEmpresa,
+    processarMensagensVisual,
     copyCredentials,
     processarMensagensEmpresas,
     showMensagensStats
