@@ -163,17 +163,31 @@ chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => 
 function isOriginAllowed(origin) {
     if (!origin) return false;
     
-    const allowedPatterns = [
+    const allowedOrigins = [
+        'http://localhost:3000',
+        'http://localhost:8000',
+        'https://localhost:3000',
+        'https://localhost:8000',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:8000',
+        'https://127.0.0.1:3000',
+        'https://127.0.0.1:8000'
+    ];
+    
+    // Verificar origens exatas
+    if (allowedOrigins.includes(origin)) {
+        return true;
+    }
+    
+    // Verificar padrões localhost com qualquer porta
+    const localhostPatterns = [
         /^http:\/\/localhost:\d+$/,
         /^https:\/\/localhost:\d+$/,
         /^http:\/\/127\.0\.0\.1:\d+$/,
-        /^https:\/\/127\.0\.0\.1:\d+$/,
-        /^http:\/\/192\.168\.\d+\.\d+:\d+$/,
-        /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/,
-        /^file:\/\/\//
+        /^https:\/\/127\.0\.0\.1:\d+$/
     ];
     
-    return allowedPatterns.some(pattern => pattern.test(origin));
+    return localhostPatterns.some(pattern => pattern.test(origin));
 }
 
 // Processamento de mensagens externas
