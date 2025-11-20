@@ -20,6 +20,7 @@ import json
 import os
 import hashlib
 from src.bot.sefaz_bot import SEFAZBot
+from src.bot.message_bot import MessageBot
 from cryptography.fernet import Fernet
 import base64
 from src.bot.exceptions.error_messages import get_user_friendly_error_message, get_error_category
@@ -197,6 +198,19 @@ class MensagemSefazResponse(BaseModel):
     data_ciencia: Optional[str]
     conteudo_mensagem: Optional[str]
     data_leitura: str
+
+class ProcessarMensagensRequest(BaseModel):
+    cpf: str
+    senha: str
+    inscricao_estadual: str
+    headless: Optional[bool] = True
+
+class ProcessarMensagensResponse(BaseModel):
+    sucesso: bool
+    mensagens_processadas: int
+    mensagem: str
+    detalhes: dict
+    tempo_execucao: Optional[str] = None
 
 # Status global da consulta
 consulta_status = {
@@ -1130,6 +1144,149 @@ async def get_mensagem(mensagem_id: int):
 
 # ========================================
 # FIM ENDPOINTS DE MENSAGENS SEFAZ
+# ========================================
+
+# ========================================
+# ENDPOINT PARA MESSAGE BOT (PROCESSAMENTO INDEPENDENTE)
+# ========================================
+
+@app.post("/api/mensagens/processar", response_model=ProcessarMensagensResponse)
+async def processar_mensagens_empresa(request: ProcessarMensagensRequest, background_tasks: BackgroundTasks):
+    """
+    Processa mensagens SEFAZ usando o MessageBot independente.
+    
+    Este endpoint executa o fluxo completo de processamento de mensagens:
+    - Login no SEFAZ
+    - Navegação para área de mensagens
+    - Processamento de mensagens com ciência
+    - Logout automático
+    
+    É completamente independente do bot principal e pode ser executado em paralelo.
+    """
+    import time
+    start_time = time.time()
+    
+    try:
+        # Validar dados de entrada
+        if not request.cpf or not request.cpf.strip():
+            raise HTTPException(status_code=400, detail="CPF é obrigatório")
+        
+        if not request.senha or not request.senha.strip():
+            raise HTTPException(status_code=400, detail="Senha é obrigatória")
+        
+        if not request.inscricao_estadual or not request.inscricao_estadual.strip():
+            raise HTTPException(status_code=400, detail="Inscrição Estadual é obrigatória")
+        
+        # Criar instância do MessageBot
+        message_bot = MessageBot()
+        
+        # Verificar conexão com banco antes de executar
+        if not message_bot.verificar_conexao_banco():
+            raise HTTPException(status_code=500, detail="Erro na conexão com banco de dados")
+        
+        # Executar processamento de mensagens
+        resultado = await message_bot.processar_mensagens_empresa(
+            cpf=request.cpf.strip(),
+            senha=request.senha.strip(),
+            inscricao_estadual=request.inscricao_estadual.strip(),
+            headless=request.headless
+        )
+        
+        # Calcular tempo de execução
+        end_time = time.time()
+        tempo_execucao = f"{end_time - start_time:.2f}s"
+        
+        # Preparar resposta
+        response = ProcessarMensagensResponse(
+            sucesso=resultado['sucesso'],
+            mensagens_processadas=resultado['mensagens_processadas'],
+            mensagem=resultado['mensagem'],
+            detalhes=resultado['detalhes'],
+            tempo_execucao=tempo_execucao
+        )
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Log detalhado do erro
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"❌ Erro no processamento de mensagens: {e}")
+        logger.error(f"   - CPF: {request.cpf}")
+        logger.error(f"   - IE: {request.inscricao_estadual}")
+        logger.error(f"   - Headless: {request.headless}")
+        
+        # Retornar erro com tempo de execução
+        end_time = time.time()
+        tempo_execucao = f"{end_time - start_time:.2f}s"
+        
+        # Criar resposta de erro estruturada
+        error_response = ProcessarMensagensResponse(
+            sucesso=False,
+            mensagens_processadas=0,
+            mensagem=f"Erro durante processamento: {str(e)}",
+            detalhes={
+                'erro_tipo': type(e).__name__,
+                'erro_detalhes': str(e),
+                'empresa': request.inscricao_estadual
+            },
+            tempo_execucao=tempo_execucao
+        )
+        
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "message": "Erro interno durante processamento de mensagens",
+                "details": error_response.dict()
+            }
+        )
+
+@app.get("/api/mensagens/estatisticas/{inscricao_estadual}")
+async def get_estatisticas_mensagens(inscricao_estadual: str):
+    """
+    Obtém estatísticas de mensagens processadas para uma empresa específica.
+    
+    Args:
+        inscricao_estadual: Inscrição estadual da empresa
+        
+    Returns:
+        Dict com total, mensagens de hoje e da semana
+    """
+    try:
+        message_bot = MessageBot()
+        estatisticas = message_bot.get_estatisticas_mensagens(inscricao_estadual)
+        
+        return {
+            "inscricao_estadual": inscricao_estadual,
+            "estatisticas": estatisticas
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao obter estatísticas: {str(e)}")
+
+@app.get("/api/mensagens/estatisticas")
+async def get_estatisticas_mensagens_globais():
+    """
+    Obtém estatísticas globais de mensagens processadas.
+    
+    Returns:
+        Dict com estatísticas de todas as empresas
+    """
+    try:
+        message_bot = MessageBot()
+        estatisticas = message_bot.get_estatisticas_mensagens()
+        
+        return {
+            "estatisticas_globais": estatisticas
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao obter estatísticas globais: {str(e)}")
+
+# ========================================
+# FIM ENDPOINT MESSAGE BOT
 # ========================================
 
 @app.get("/api/status", response_model=StatusResponse)
