@@ -927,8 +927,9 @@ export async function copyCredentials(empresaId) {
         // Buscar credenciais da empresa
         const credenciais = await api.fetchCredenciaisEmpresa(empresaId);
         
-        // Formatar os dados para cópia
-        const dadosAcesso = `CPF: ${utils.formatCPF(credenciais.cpf_socio)}\nSenha: ${credenciais.senha}`;
+        // Formatar os dados para cópia - CPF sem pontos
+        const cpfLimpo = credenciais.cpf_socio.replace(/\D/g, '');
+        const dadosAcesso = `CPF: ${cpfLimpo}\nSenha: ${credenciais.senha}`;
         
         // Copiar para clipboard
         try {
@@ -964,6 +965,7 @@ export async function copyCredentials(empresaId) {
 }
 
 function showCredentialsModal(credenciais) {
+    const cpfLimpo = credenciais.cpf_socio.replace(/\D/g, '');
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50';
     modal.innerHTML = `
@@ -972,7 +974,7 @@ function showCredentialsModal(credenciais) {
                 <h3 class="text-lg font-medium text-gray-900 mb-4">Dados de Acesso</h3>
                 <div class="bg-gray-50 p-4 rounded-md mb-4">
                     <p class="text-sm font-medium text-gray-700 mb-2">Empresa: ${credenciais.nome_empresa}</p>
-                    <p class="text-sm text-gray-600 mb-2">CPF: <span class="font-mono">${utils.formatCPF(credenciais.cpf_socio)}</span></p>
+                    <p class="text-sm text-gray-600 mb-2">CPF: <span class="font-mono">${cpfLimpo}</span></p>
                     <p class="text-sm text-gray-600">Senha: <span class="font-mono">${credenciais.senha}</span></p>
                 </div>
                 <p class="text-xs text-gray-500 mb-4">Copie manualmente os dados acima</p>
