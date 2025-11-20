@@ -162,7 +162,9 @@ def init_database():
             senha TEXT NOT NULL,
             observacoes TEXT,
             ativo INTEGER DEFAULT 1,
-            data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
     
@@ -171,15 +173,18 @@ def init_database():
         CREATE TABLE IF NOT EXISTS queue_jobs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             empresa_id INTEGER NOT NULL,
-            tipo TEXT NOT NULL,
+            tipo TEXT NOT NULL DEFAULT 'consulta',
             status TEXT DEFAULT 'pending',
             prioridade INTEGER DEFAULT 5,
             tentativas INTEGER DEFAULT 0,
             max_tentativas INTEGER DEFAULT 3,
             data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            data_adicao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             data_inicio TIMESTAMP,
+            data_processamento TIMESTAMP,
             data_conclusao TIMESTAMP,
             erro TEXT,
+            erro_detalhes TEXT,
             resultado TEXT,
             FOREIGN KEY (empresa_id) REFERENCES empresas (id)
         )
