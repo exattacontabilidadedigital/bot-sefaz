@@ -2,13 +2,11 @@
   "manifest_version": 3,
   "name": "SEFAZ-MA Auto Login",
   "version": "1.2.0",
-  "description": "Preenche automaticamente login do SEFAZ-MA com modo visual robusto e comunicação aprimorada",
+  "description": "Preenche automaticamente login do SEFAZ-MA com modo visual robusto",
   "permissions": [
     "storage",
     "activeTab",
-    "tabs",
-    "management",
-    "scripting"
+    "tabs"
   ],
   "host_permissions": [
     "*://sefaznet.sefaz.ma.gov.br/*",
@@ -21,8 +19,7 @@
         "*://sefaz.ma.gov.br/*"
       ],
       "js": ["content.js"],
-      "run_at": "document_idle",
-      "all_frames": false
+      "run_at": "document_idle"
     }
   ],
   "background": {
@@ -30,25 +27,14 @@
   },
   "externally_connectable": {
     "matches": [
-      "http://localhost:*/*",
-      "https://localhost:*/*",
-      "http://127.0.0.1:*/*",
-      "https://127.0.0.1:*/*",
-      "http://127.0.0.1:3000/*",
-      "http://127.0.0.1:8000/*",
       "http://localhost:3000/*",
       "http://localhost:8000/*",
-      "file:///*"
+      "http://127.0.0.1:3000/*",
+      "http://127.0.0.1:8000/*"
     ]
   },
-  "web_accessible_resources": [
-    {
-      "resources": ["*.js", "*.json"],
-      "matches": ["<all_urls>"]
-    }
-  ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "SEFAZ-MA Auto Login v1.2.0"
+    "default_title": "SEFAZ-MA Auto Login"
   }
 }
