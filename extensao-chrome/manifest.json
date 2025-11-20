@@ -18,12 +18,12 @@
         "*://sefaznet.sefaz.ma.gov.br/*",
         "*://sefaz.ma.gov.br/*"
       ],
-      "js": ["content.js"],
+      "js": ["content-simple.js"],
       "run_at": "document_idle"
     }
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background-simple.js"
   },
   "externally_connectable": {
     "matches": [
