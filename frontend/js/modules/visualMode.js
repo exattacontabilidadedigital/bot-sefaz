@@ -57,39 +57,68 @@ export async function checkChromeExtension() {
             // Log do ID atual para debug
             console.log('🔌 Testando comunicação com extensão ID:', EXTENSION_ID);
             
-            // Tentar comunicação com timeout mais longo
-            const timeout = setTimeout(() => {
-                console.log('⏰ Timeout na comunicação com extensão (10s)');
-                resolve(false);
-            }, 10000);
-            
-            chrome.runtime.sendMessage(EXTENSION_ID, { action: 'ping' }, (response) => {
-                clearTimeout(timeout);
-                
-                if (chrome.runtime.lastError) {
-                    console.log('❌ Erro na comunicação:', chrome.runtime.lastError.message);
-                    // Se erro específico de ID inválido, limpar localStorage
-                    if (chrome.runtime.lastError.message.includes('Extension') || 
-                        chrome.runtime.lastError.message.includes('Invalid')) {
-                        console.log('🗑️ Removendo ID inválido do localStorage');
-                        localStorage.removeItem('chrome_extension_id');
-                        EXTENSION_ID = 'your-extension-id-here';
+            // Primeiro, verificar se a extensão está instalada usando chrome.management
+            if (chrome.management) {
+                chrome.management.get(EXTENSION_ID, (extensionInfo) => {
+                    if (chrome.runtime.lastError) {
+                        console.log('❌ Extensão não encontrada no sistema:', chrome.runtime.lastError.message);
+                        resolve(false);
+                        return;
                     }
-                    resolve(false);
-                } else if (response && response.pong === true) {
-                    console.log('✅ Extensão respondeu:', response);
-                    resolve(true);
-                } else {
-                    console.log('📭 Resposta inválida da extensão:', response);
-                    resolve(false);
-                }
-            });
+                    
+                    if (!extensionInfo.enabled) {
+                        console.log('⚠️ Extensão encontrada mas está DESABILITADA');
+                        resolve(false);
+                        return;
+                    }
+                    
+                    console.log('✅ Extensão encontrada e ativa:', extensionInfo.name);
+                    
+                    // Agora testar comunicação
+                    testExtensionCommunication(resolve);
+                });
+            } else {
+                // Fallback se management API não disponível
+                console.log('⚠️ Chrome Management API não disponível, testando comunicação direta');
+                testExtensionCommunication(resolve);
+            }
             
         } catch (error) {
             console.error('💥 Erro crítico ao verificar extensão:', error);
             resolve(false);
         }
     });
+    
+    function testExtensionCommunication(resolve) {
+        // Tentar comunicação com timeout mais longo
+        const timeout = setTimeout(() => {
+            console.log('⏰ Timeout na comunicação com extensão (10s)');
+            resolve(false);
+        }, 10000);
+        
+        chrome.runtime.sendMessage(EXTENSION_ID, { action: 'ping', timestamp: Date.now() }, (response) => {
+            clearTimeout(timeout);
+            
+            if (chrome.runtime.lastError) {
+                console.log('❌ Erro na comunicação:', chrome.runtime.lastError.message);
+                // Se erro específico de ID inválido, limpar localStorage
+                if (chrome.runtime.lastError.message.includes('Extension') || 
+                    chrome.runtime.lastError.message.includes('Invalid') ||
+                    chrome.runtime.lastError.message.includes('does not exist')) {
+                    console.log('🗑️ Removendo ID inválido do localStorage');
+                    localStorage.removeItem('chrome_extension_id');
+                    EXTENSION_ID = 'your-extension-id-here';
+                }
+                resolve(false);
+            } else if (response && response.pong === true) {
+                console.log('✅ Extensão respondeu:', response);
+                resolve(true);
+            } else {
+                console.log('📭 Resposta inválida da extensão:', response);
+                resolve(false);
+            }
+        });
+    }
 }
 
 // Função para verificar extensão com retry logic
@@ -184,6 +213,79 @@ export async function autoDetectExtensionId() {
     return false;
 }
 
+// Função para verificar status detalhado da extensão
+export async function checkExtensionStatus() {
+    console.log('🔍 === VERIFICAÇÃO DETALHADA DE STATUS ===');
+    
+    if (typeof chrome === 'undefined' || !chrome.runtime) {
+        console.log('❌ Chrome API não disponível');
+        return { installed: false, enabled: false, error: 'Chrome API não disponível' };
+    }
+    
+    if (EXTENSION_ID === 'your-extension-id-here') {
+        console.log('❌ ID da extensão não configurado');
+        return { installed: false, enabled: false, error: 'ID não configurado' };
+    }
+    
+    // Verificar se extensão está instalada usando management API
+    if (chrome.management) {
+        try {
+            const extensionInfo = await new Promise((resolve, reject) => {
+                chrome.management.get(EXTENSION_ID, (info) => {
+                    if (chrome.runtime.lastError) {
+                        reject(chrome.runtime.lastError);
+                    } else {
+                        resolve(info);
+                    }
+                });
+            });
+            
+            console.log('📦 Extensão encontrada:', {
+                name: extensionInfo.name,
+                version: extensionInfo.version,
+                enabled: extensionInfo.enabled,
+                installType: extensionInfo.installType
+            });
+            
+            if (!extensionInfo.enabled) {
+                return { 
+                    installed: true, 
+                    enabled: false, 
+                    error: 'Extensão instalada mas DESABILITADA',
+                    info: extensionInfo 
+                };
+            }
+            
+            // Testar comunicação
+            const communicating = await checkChromeExtension();
+            
+            return {
+                installed: true,
+                enabled: true,
+                communicating,
+                info: extensionInfo
+            };
+            
+        } catch (error) {
+            console.log('❌ Extensão NÃO INSTALADA:', error.message);
+            return { 
+                installed: false, 
+                enabled: false, 
+                error: 'Extensão não instalada: ' + error.message 
+            };
+        }
+    } else {
+        console.log('⚠️ Management API não disponível, testando comunicação direta');
+        const communicating = await checkChromeExtension();
+        return {
+            installed: communicating, // Assume instalada se comunica
+            enabled: communicating,
+            communicating,
+            error: communicating ? null : 'Não consegue comunicar'
+        };
+    }
+}
+
 // Atualizar status da extensão na interface
 export function updateExtensionStatus() {
     const statusElement = document.getElementById('extensionStatus');
@@ -227,6 +329,78 @@ export function updateExtensionStatus() {
         
         visualModeEnabled = false;
     }
+}
+
+// Função para guiar resolução de problemas
+export async function troubleshootExtension() {
+    console.log('🛠️ === DIAGNÓSTICO E RESOLUÇÃO ===');
+    
+    const status = await checkExtensionStatus();
+    
+    if (!status.installed) {
+        console.log('📋 AÇÃO NECESSÁRIA: Instalar extensão');
+        console.log('1. Vá em chrome://extensions/');
+        console.log('2. Ative "Modo do desenvolvedor"');
+        console.log('3. Clique "Carregar sem compactação"');
+        console.log('4. Selecione a pasta: extensao-chrome/');
+        console.log('5. Anote o ID gerado');
+        console.log('6. Execute: visualModeUI.setExtensionId("ID_COPIADO")');
+        
+        return {
+            action: 'install',
+            message: 'Extensão precisa ser instalada',
+            steps: [
+                'Ir em chrome://extensions/',
+                'Ativar "Modo do desenvolvedor"', 
+                'Carregar extensão da pasta extensao-chrome/',
+                'Configurar ID na aplicação'
+            ]
+        };
+    }
+    
+    if (!status.enabled) {
+        console.log('📋 AÇÃO NECESSÁRIA: Ativar extensão');
+        console.log('1. Vá em chrome://extensions/');
+        console.log('2. Encontre "SEFAZ-MA Auto Login"');
+        console.log('3. Ative o toggle (deve ficar azul)');
+        console.log('4. Recarregue esta página');
+        
+        return {
+            action: 'enable',
+            message: 'Extensão instalada mas desabilitada',
+            steps: [
+                'Ir em chrome://extensions/',
+                'Ativar extensão "SEFAZ-MA Auto Login"',
+                'Recarregar aplicação'
+            ]
+        };
+    }
+    
+    if (!status.communicating) {
+        console.log('📋 AÇÃO NECESSÁRIA: Recarregar extensão');
+        console.log('1. Vá em chrome://extensions/');
+        console.log('2. Encontre "SEFAZ-MA Auto Login"');
+        console.log('3. Clique no ícone 🔄 (recarregar)');
+        console.log('4. Aguarde alguns segundos');
+        console.log('5. Teste novamente: visualModeUI.checkExtension()');
+        
+        return {
+            action: 'reload',
+            message: 'Extensão ativa mas não responde (service worker inativo)',
+            steps: [
+                'Ir em chrome://extensions/',
+                'Recarregar extensão "SEFAZ-MA Auto Login"',
+                'Aguardar e testar novamente'
+            ]
+        };
+    }
+    
+    console.log('✅ Extensão funcionando corretamente!');
+    return {
+        action: 'working',
+        message: 'Extensão funcionando perfeitamente',
+        status
+    };
 }
 
 // Configurar eventos do modo visual

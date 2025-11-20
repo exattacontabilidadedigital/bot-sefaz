@@ -122,6 +122,12 @@ export function showNotification(message, type = 'info') {
 }
 
 export function initLucideIcons() {
+    // Evitar inicialização múltipla
+    if (window.lucideInitialized) {
+        console.log('🔄 Lucide já inicializado, ignorando...');
+        return;
+    }
+    
     try {
         // Aguardar um momento para garantir que o DOM esteja completamente carregado
         setTimeout(() => {
@@ -129,34 +135,50 @@ export function initLucideIcons() {
                 // Verificar se existem elementos com data-lucide antes de inicializar
                 const lucideElements = document.querySelectorAll('[data-lucide]');
                 if (lucideElements.length > 0) {
-                    // Interceptar erros de MutationObserver para prevenir crashes
+                    // Interceptar erros de MutationObserver de forma mais robusta
                     const originalObserve = MutationObserver.prototype.observe;
+                    const originalDisconnect = MutationObserver.prototype.disconnect;
+                    
                     MutationObserver.prototype.observe = function(target, options) {
                         try {
-                            if (target && target.nodeType === Node.ELEMENT_NODE) {
+                            if (target && typeof target === 'object' && target.nodeType === Node.ELEMENT_NODE && target.parentNode) {
                                 return originalObserve.call(this, target, options);
                             } else {
-                                console.warn('⚠️ Tentativa de observar elemento inválido ignorada:', target);
+                                // Silenciar erro sem log para evitar spam
+                                return;
                             }
                         } catch (error) {
-                            console.warn('⚠️ Erro no MutationObserver ignorado:', error);
+                            // Silenciar completamente erros de bibliotecas externas
+                            return;
+                        }
+                    };
+                    
+                    // Proteger disconnect também
+                    MutationObserver.prototype.disconnect = function() {
+                        try {
+                            return originalDisconnect.call(this);
+                        } catch (error) {
+                            // Silenciar erros de disconnect
+                            return;
                         }
                     };
                     
                     lucide.createIcons();
                     console.log('✅ Ícones Lucide inicializados com sucesso');
+                    window.lucideInitialized = true;
                     
                     // Restaurar função original após um tempo
                     setTimeout(() => {
                         MutationObserver.prototype.observe = originalObserve;
-                    }, 2000);
+                        MutationObserver.prototype.disconnect = originalDisconnect;
+                    }, 5000);
                 } else {
                     console.log('⚠️ Nenhum elemento Lucide encontrado');
                 }
             } else {
                 console.warn('⚠️ Biblioteca Lucide não encontrada');
             }
-        }, 200); // Aumentar delay para dar mais tempo ao DOM
+        }, 300); // Aumentar delay ainda mais
     } catch (error) {
         console.warn('❌ Erro ao inicializar ícones Lucide:', error);
     }
