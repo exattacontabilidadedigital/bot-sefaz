@@ -1,0 +1,6 @@
+nome_empresa,cnpj,inscricao_estadual,cpf_socio,senha,observacoes
+TESTE EMPRESA A LTDA,12.345.678/0001-90,123456789,123.456.789-01,MinhaSenh@123!,Empresa de teste com senha especial
+TESTE EMPRESA B SA,98.765.432/0001-10,987654321,987.654.321-09,1234Senha#,Senha com números no início
+TESTE EMPRESA C ME,11.222.333/0001-44,111222333,111.222.333-44,Senh@456$pecial,Senha com símbolos especiais
+EMPRESA NOTACAO D,55.666.777/0001-88,555666777,555.666.777-55,123e+05,Senha que parece notação científica
+TESTE EMPRESA E EPP,99.888.777/0001-66,999888777,999.888.777-99,Pass1e10Word,Senha com e minúsculo

@@ -472,16 +472,10 @@ function handleCSVFileSelect(event) {
         // Corrigir encoding se necessário
         text = fixEncoding(text);
         
-        // PRÉ-PROCESSAMENTO: Converter notação científica antes do parse
-        const scientificNotationRegex = /(\d+[,.]?\d*)[eE]([+-]?\d+)/g;
+        // CORREÇÃO: Remover o pré-processamento global de notação científica
+        // A conversão será feita campo por campo durante o parse para proteger senhas
         
-        text = text.replace(scientificNotationRegex, (match, mantissa, exponent) => {
-            mantissa = mantissa.replace(',', '.');
-            const number = parseFloat(mantissa) * Math.pow(10, parseInt(exponent));
-            return number.toFixed(0);
-        });
-        
-        console.log('Texto pré-processado (primeiras 500 caracteres):', text.substring(0, 500));
+        console.log('Texto original (primeiras 500 caracteres):', text.substring(0, 500));
         
         parseCSV(text);
     };
@@ -565,25 +559,33 @@ function parseCSV(text) {
         return values;
     };
     
-    // Converter notação científica para número normal (fallback adicional)
-    const convertScientificNotation = (value) => {
+    // CORREÇÃO: Função específica para converter notação científica apenas para campos numéricos
+    const convertScientificNotationForNumericFields = (value, fieldName) => {
         if (!value || value === '') return '';
         
         // Remover aspas se houver
         value = value.replace(/^["']|["']$/g, '').trim();
         
-        // Se já foi convertido no pré-processamento, retornar direto
+        // IMPORTANTE: Só converter notação científica para campos que são realmente números
+        // SENHA NÃO DEVE SER CONVERTIDA
+        const numericFields = ['cnpj', 'inscricao_estadual', 'cpf_socio'];
+        
+        if (!numericFields.includes(fieldName)) {
+            // Para campos não numéricos (como senha), retornar o valor original
+            return value;
+        }
+        
+        // Verificar se tem notação científica
         if (!/[eE][+-]?\d+/.test(value)) {
             return value;
         }
         
-        // Substituir vírgula por ponto para conversão
+        // Converter apenas para campos numéricos
         const normalizedValue = value.replace(',', '.');
         
         try {
             const number = parseFloat(normalizedValue);
             if (!isNaN(number)) {
-                // Converter para string sem notação científica e sem decimais
                 return number.toFixed(0);
             }
         } catch (e) {
@@ -626,9 +628,12 @@ function parseCSV(text) {
         headers.forEach((header, index) => {
             let value = values[index];
             
-            // Converter notação científica para campos numéricos
-            if (['cnpj', 'inscricao_estadual', 'cpf_socio'].includes(header)) {
-                value = convertScientificNotation(value);
+            // CORREÇÃO: Aplicar conversão de notação científica apenas para campos específicos
+            value = convertScientificNotationForNumericFields(value, header);
+            
+            // Log específico para senha para debug
+            if (header === 'senha') {
+                console.log(`Linha ${i+1} - Senha processada: "${values[index]}" -> "${value}"`);
             }
             
             row[header] = value;
