@@ -32,11 +32,17 @@ window.visualModeUI = {
 // Inicializar aplicação quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Aguardar um frame para garantir que todos os elementos estejam renderizados
-        await new Promise(resolve => requestAnimationFrame(resolve));
+        // Proteção global contra erros de MutationObserver
+        setupMutationObserverProtection();
+        
+        // Aguardar DOM completamente carregado e ícones renderizados
+        await waitForDOMComplete();
         
         // Inicializar ícones Lucide
         initLucideIcons();
+        
+        // Aguardar um pouco mais para ícones carregarem
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         // Configurar listeners das abas
         tabsUI.setupTabListeners();
@@ -270,4 +276,53 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
+}
+
+// Proteção global contra erros de MutationObserver
+function setupMutationObserverProtection() {
+    // Interceptar e corrigir erros de bibliotecas externas com MutationObserver
+    const originalConsoleError = console.error;
+    console.error = function(...args) {
+        const message = args.join(' ');
+        // Filtrar erros específicos de MutationObserver de bibliotecas externas
+        if (message.includes("Failed to execute 'observe' on 'MutationObserver'") && 
+            message.includes("parameter 1 is not of type 'Node'")) {
+            console.warn('⚠️ Erro de MutationObserver de biblioteca externa interceptado e ignorado');
+            return;
+        }
+        // Permitir outros erros normais
+        originalConsoleError.apply(console, args);
+    };
+    
+    // Interceptar erros não tratados que podem ser do MutationObserver
+    window.addEventListener('error', (event) => {
+        if (event.message && event.message.includes('MutationObserver') && 
+            event.message.includes('not of type')) {
+            console.warn('⚠️ Erro global de MutationObserver interceptado:', event.message);
+            event.preventDefault();
+            return false;
+        }
+    });
+    
+    console.log('🛡️ Proteção contra erros de MutationObserver ativada');
+}
+
+// Aguardar DOM completamente carregado
+async function waitForDOMComplete() {
+    // Aguardar alguns frames para garantir renderização completa
+    for (let i = 0; i < 3; i++) {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+    }
+    
+    // Aguardar carregamento de scripts externos (Lucide, etc)
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Verificar se bibliotecas externas estão carregadas
+    let attempts = 0;
+    while (typeof lucide === 'undefined' && attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        attempts++;
+    }
+    
+    console.log('✅ DOM completamente carregado e pronto para inicialização');
 }

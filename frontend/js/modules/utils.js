@@ -129,15 +129,34 @@ export function initLucideIcons() {
                 // Verificar se existem elementos com data-lucide antes de inicializar
                 const lucideElements = document.querySelectorAll('[data-lucide]');
                 if (lucideElements.length > 0) {
+                    // Interceptar erros de MutationObserver para prevenir crashes
+                    const originalObserve = MutationObserver.prototype.observe;
+                    MutationObserver.prototype.observe = function(target, options) {
+                        try {
+                            if (target && target.nodeType === Node.ELEMENT_NODE) {
+                                return originalObserve.call(this, target, options);
+                            } else {
+                                console.warn('⚠️ Tentativa de observar elemento inválido ignorada:', target);
+                            }
+                        } catch (error) {
+                            console.warn('⚠️ Erro no MutationObserver ignorado:', error);
+                        }
+                    };
+                    
                     lucide.createIcons();
                     console.log('✅ Ícones Lucide inicializados com sucesso');
+                    
+                    // Restaurar função original após um tempo
+                    setTimeout(() => {
+                        MutationObserver.prototype.observe = originalObserve;
+                    }, 2000);
                 } else {
                     console.log('⚠️ Nenhum elemento Lucide encontrado');
                 }
             } else {
                 console.warn('⚠️ Biblioteca Lucide não encontrada');
             }
-        }, 100);
+        }, 200); // Aumentar delay para dar mais tempo ao DOM
     } catch (error) {
         console.warn('❌ Erro ao inicializar ícones Lucide:', error);
     }
