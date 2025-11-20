@@ -377,3 +377,21 @@ export async function delete_request(url) {
 
 // Alias para delete (palavra reservada em JS)
 export { delete_request as delete };
+
+// Executar consulta SEFAZ
+export async function executeConsulta(dados) {
+    const response = await fetch(`${API_BASE_URL}/executar-consulta`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dados)
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Erro desconhecido' }));
+        throw new Error(errorData.detail || `Erro ${response.status}: ${response.statusText}`);
+    }
+    
+    return await response.json();
+}

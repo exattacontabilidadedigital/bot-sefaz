@@ -43,15 +43,23 @@
                         <h1 class="text-3xl font-bold text-gray-900">SEFAZ Bot</h1>
                     </div>
                     <div class="flex items-center space-x-4">
-                        <!-- Toggle Modo Visível do Browser -->
-                        <div class="flex items-center bg-gray-100 rounded-lg p-2">
-                            <i data-lucide="eye" class="h-5 w-5 text-gray-600 mr-2"></i>
-                            <span class="text-sm font-medium text-gray-700 mr-3">Modo Visível</span>
+                        <!-- Toggle Modo Visual -->
+                        <div class="flex items-center bg-gray-100 rounded-lg p-2" data-container="visual-mode">
+                            <i data-lucide="monitor" class="h-5 w-5 text-gray-600 mr-2"></i>
+                            <span class="text-sm font-medium text-gray-700 mr-3">Modo Visual</span>
                             <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="headless-toggle" class="sr-only peer" checked>
+                                <input type="checkbox" id="visual-mode-toggle" class="sr-only peer">
                                 <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                             </label>
-                            <span class="text-xs text-gray-500 ml-2" id="headless-status">Desativado</span>
+                            <span class="text-xs text-gray-500 ml-2" id="visual-mode-status">Extensão não detectada</span>
+                            <button 
+                                id="config-extension-btn"
+                                class="ml-2 text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                                title="Configurar Extensão Chrome"
+                                onclick="window.visualModeUI && window.visualModeUI.showConfig()"
+                            >
+                                ⚙️ Config
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -87,6 +95,54 @@
             
             <!-- Tab: Consultas -->
             <div data-tab-content="consultas" class="hidden mt-4">
+                <!-- Formulário de Execução de Consulta -->
+                <div class="card mb-8">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">Executar Nova Consulta</h3>
+                        <p class="text-sm text-gray-500 mt-1">Execute uma consulta SEFAZ individual</p>
+                    </div>
+                    <div class="p-6">
+                        <form id="consultaForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <label for="consultaCpf" class="block text-sm font-medium text-gray-700 mb-1">CPF *</label>
+                                <input id="consultaCpf" type="text" class="input-field" placeholder="000.000.000-00" required>
+                            </div>
+                            <div>
+                                <label for="consultaSenha" class="block text-sm font-medium text-gray-700 mb-1">Senha *</label>
+                                <input id="consultaSenha" type="password" class="input-field" required>
+                            </div>
+                            <div>
+                                <label for="consultaIe" class="block text-sm font-medium text-gray-700 mb-1">IE (opcional)</label>
+                                <input id="consultaIe" type="text" class="input-field" placeholder="123456789">
+                            </div>
+                            <div class="flex items-end">
+                                <button type="submit" id="executarConsultaBtn" class="btn-primary w-full">
+                                    <i data-lucide="play" class="h-4 w-4 mr-2"></i>
+                                    Executar
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <!-- Opções de Modo -->
+                        <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <label class="flex items-center space-x-2">
+                                        <input type="checkbox" id="visualModeConsulta" class="rounded">
+                                        <span class="text-sm font-medium text-gray-700">Modo Visual</span>
+                                        <i class="text-blue-500 cursor-help" title="Ver bot em ação no seu navegador (requer extensão Chrome)" data-lucide="help-circle"></i>
+                                    </label>
+                                    <div id="extensionStatus" class="text-xs px-2 py-1 rounded-full"></div>
+                                </div>
+                                <div id="consultaProgress" class="hidden flex items-center space-x-2">
+                                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                    <span class="text-sm text-gray-600" id="consultaProgressText">Executando...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Dashboard Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <div class="card cursor-pointer hover:bg-gray-50 transition-colors" 

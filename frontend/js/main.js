@@ -6,6 +6,9 @@ import * as tabsUI from './modules/tabs.js';
 import { mensagensUI } from './modules/mensagens.js';
 import * as agendamentoUI from './modules/agendamento.js';
 import { initLucideIcons } from './modules/utils.js';
+import { initVisualMode } from './modules/visualMode.js';
+import { initDashboard } from './modules/dashboard.js';
+import * as visualModeModule from './modules/visualMode.js';
 
 // Expor módulos globalmente para uso em onclick handlers do HTML
 window.consultasUI = consultasUI;
@@ -14,6 +17,17 @@ window.filaUI = filaUI;
 window.tabsUI = tabsUI;
 window.mensagensUI = mensagensUI;
 window.agendamentoUI = agendamentoUI;
+
+// Expor funcionalidades do modo visual
+window.visualModeUI = {
+    showConfig: () => {
+        // Chamar função interna do módulo
+        const event = new CustomEvent('show-extension-config');
+        document.dispatchEvent(event);
+    },
+    setExtensionId: visualModeModule.setExtensionId,
+    getExtensionId: visualModeModule.getExtensionId
+};
 
 // Inicializar aplicação quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', async () => {
@@ -47,6 +61,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Setup do toggle de modo headless
         setupHeadlessToggle();
+        
+        // Inicializar modo visual
+        await initVisualMode();
+        
+        // Inicializar dashboard
+        initDashboard();
         
     } catch (error) {
         console.error('Erro durante inicialização da aplicação:', error);
@@ -232,72 +252,11 @@ function setupInputMasks() {
     }
 }
 
-// Configurar toggle do modo headless
+// Configurar toggle do modo headless (mantido para compatibilidade)
 function setupHeadlessToggle() {
-    const toggle = document.getElementById('headless-toggle');
-    const statusText = document.getElementById('headless-status');
-    
-    if (!toggle || !statusText) return;
-    
-    // Carregar configuração salva do localStorage
-    const savedHeadless = localStorage.getItem('headless_mode');
-    if (savedHeadless !== null) {
-        toggle.checked = savedHeadless === 'true';
-    }
-    
-    // Atualizar texto inicial
-    updateHeadlessStatus(toggle.checked);
-    
-    // Listener para mudanças
-    toggle.addEventListener('change', async (e) => {
-        const isHeadless = e.target.checked;
-        
-        // Salvar no localStorage
-        localStorage.setItem('headless_mode', isHeadless);
-        
-        // Atualizar status visual
-        updateHeadlessStatus(isHeadless);
-        
-        // Mostrar notificação
-        showHeadlessNotification(isHeadless);
-        
-        console.log(`Modo headless ${isHeadless ? 'ativado' : 'desativado'}`);
-    });
-    
-    function updateHeadlessStatus(isHeadless) {
-        statusText.textContent = isHeadless ? 'Ativado' : 'Desativado';
-        statusText.className = isHeadless 
-            ? 'text-xs text-blue-600 ml-2 font-medium' 
-            : 'text-xs text-gray-500 ml-2';
-    }
-    
-    function showHeadlessNotification(isHeadless) {
-        const message = isHeadless 
-            ? 'Modo headless ativado - Browser será invisível nas próximas consultas'
-            : 'Modo headless desativado - Browser será visível nas próximas consultas';
-        
-        // Criar notificação toast
-        const toast = document.createElement('div');
-        toast.className = 'fixed top-20 right-4 bg-white rounded-lg shadow-lg p-4 border-l-4 border-blue-500 z-50 animate-slide-in-right';
-        toast.innerHTML = `
-            <div class="flex items-center">
-                <i data-lucide="${isHeadless ? 'eye-off' : 'eye'}" class="h-5 w-5 text-blue-600 mr-3"></i>
-                <div>
-                    <p class="text-sm font-medium text-gray-900">${isHeadless ? 'Modo Invisível' : 'Modo Visível'}</p>
-                    <p class="text-xs text-gray-600 mt-1">${message}</p>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(toast);
-        lucide.createIcons();
-        
-        // Remover após 4 segundos
-        setTimeout(() => {
-            toast.classList.add('animate-fade-out');
-            setTimeout(() => toast.remove(), 300);
-        }, 4000);
-    }
+    // Esta função foi substituída pelo modo visual
+    // Manter por compatibilidade se necessário
+    console.log('Toggle headless substituído pelo modo visual');
 }
 
 // Função auxiliar de debounce

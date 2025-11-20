@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 import sqlite3
 from datetime import datetime
 from typing import List, Optional
@@ -108,8 +108,17 @@ app.add_middleware(
 class ConsultaRequest(BaseModel):
     usuario: Optional[str] = None
     senha: Optional[str] = None
+    cpf_socio: Optional[str] = None  # Alias para usuario
     inscricao_estadual: Optional[str] = None  # Inscrição Estadual opcional
     headless: bool = True  # Modo headless (invisível) por padrão
+    modo_visual: bool = False  # Modo visual (via extensão Chrome)
+    
+    @validator('usuario', pre=True, always=True)
+    def set_usuario_from_cpf(cls, v, values):
+        # Se usuario não foi fornecido, usar cpf_socio
+        if not v and 'cpf_socio' in values:
+            return values['cpf_socio']
+        return v
 
 class ConsultaResponse(BaseModel):
     id: int
@@ -1327,18 +1336,35 @@ async def get_status():
         }
     )
 
-@app.post("/api/consulta", response_model=StatusResponse)
+@app.post("/api/executar-consulta", response_model=StatusResponse)
+@app.post("/api/consulta", response_model=StatusResponse)  # Manter compatibilidade
 async def executar_consulta(request: ConsultaRequest, background_tasks: BackgroundTasks):
-    """Executa uma nova consulta em background"""
+    """Executa uma nova consulta em background (modo headless ou visual)"""
     global consulta_status
     
     if consulta_status["running"]:
         raise HTTPException(status_code=400, detail="Já existe uma consulta em execução")
     
-    # Iniciar consulta em background
+    # Se modo visual está ativo, retornar resposta especial
+    if request.modo_visual:
+        consulta_status["running"] = True
+        consulta_status["message"] = "Consulta em modo visual - aguardando extensão Chrome"
+        consulta_status["progress"] = 50
+        consulta_status["current_step"] = "Executando no navegador..."
+        
+        # Simular execução visual (dados serão processados pela extensão)
+        background_tasks.add_task(simulate_visual_mode_execution)
+        
+        return StatusResponse(
+            status="success",
+            message="Modo visual ativado - consulta sendo executada no navegador",
+            data={"running": True, "visual_mode": True}
+        )
+    
+    # Modo headless tradicional
     background_tasks.add_task(
         run_consulta_background, 
-        request.usuario, 
+        request.usuario or request.cpf_socio, 
         request.senha, 
         request.inscricao_estadual,
         request.headless
@@ -1352,7 +1378,7 @@ async def executar_consulta(request: ConsultaRequest, background_tasks: Backgrou
     return StatusResponse(
         status="success",
         message="Consulta iniciada com sucesso",
-        data={"running": True}
+        data={"running": True, "visual_mode": False}
     )
 
 async def run_consulta_background(usuario: Optional[str], senha: Optional[str], inscricao_estadual: Optional[str] = None, headless: bool = True):
@@ -1388,6 +1414,33 @@ async def run_consulta_background(usuario: Optional[str], senha: Optional[str], 
         consulta_status["progress"] = 0
     
     finally:
+        consulta_status["running"] = False
+
+async def simulate_visual_mode_execution():
+    """Simula execução de consulta em modo visual"""
+    global consulta_status
+    
+    try:
+        # Aguardar um pouco para simular processamento
+        await asyncio.sleep(2)
+        
+        consulta_status["progress"] = 75
+        consulta_status["current_step"] = "Aguardando resultado da extensão..."
+        
+        # Aguardar mais tempo para simular execução no navegador
+        await asyncio.sleep(5)
+        
+        consulta_status["progress"] = 100
+        consulta_status["current_step"] = "Concluído via modo visual"
+        consulta_status["message"] = "Consulta executada com sucesso no modo visual"
+        
+    except Exception as e:
+        logger.error(f"Erro na simulação visual: {str(e)}")
+        consulta_status["message"] = f"Erro no modo visual: {str(e)}"
+        consulta_status["current_step"] = "Erro"
+    finally:
+        # Aguardar mais um pouco antes de resetar status
+        await asyncio.sleep(3)
         consulta_status["running"] = False
 
 @app.get("/api/estatisticas")

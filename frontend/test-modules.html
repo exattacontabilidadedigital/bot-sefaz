@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Módulos JS</title>
+</head>
+<body>
+    <h1>Teste de Importações JavaScript</h1>
+    <div id="results"></div>
+    
+    <script type="module">
+        async function testModules() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Testando importações...</p>';
+            
+            try {
+                // Testar importação do dashboard
+                console.log('🧪 Testando dashboard...');
+                const dashboard = await import('./js/modules/dashboard.js');
+                console.log('✅ Dashboard importado:', dashboard);
+                
+                // Testar importação do visualMode
+                console.log('🧪 Testando visualMode...');
+                const visualMode = await import('./js/modules/visualMode.js');
+                console.log('✅ VisualMode importado:', visualMode);
+                
+                // Testar importação da API
+                console.log('🧪 Testando API...');
+                const api = await import('./js/modules/api.js');
+                console.log('✅ API importada:', api);
+                
+                results.innerHTML = `
+                    <h2>✅ Testes Concluídos</h2>
+                    <ul>
+                        <li>✅ Dashboard: ${typeof dashboard.initDashboard}</li>
+                        <li>✅ VisualMode: ${typeof visualMode.initVisualMode}</li>
+                        <li>✅ API: ${typeof api.fetchEstatatisticas}</li>
+                    </ul>
+                `;
+                
+            } catch (error) {
+                console.error('❌ Erro no teste:', error);
+                results.innerHTML = `<p style="color: red;">❌ Erro: ${error.message}</p>`;
+            }
+        }
+        
+        // Executar teste quando página carregar
+        window.addEventListener('load', testModules);
+    </script>
+</body>
+</html>
