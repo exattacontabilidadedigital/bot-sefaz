@@ -57,8 +57,8 @@ chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => 
     
     if (request.action === 'ping') {
         console.log('Ping recebido');
-        sendResponse({ success: true, message: 'MessageBot ativo' });
-        return true;
+        sendResponse({ pong: true, status: 'active' });
+        return false; // Resposta síncrona
     }
     
     return false;

@@ -165,7 +165,6 @@ async function executeAutomationScript(tabId, dados) {
                 reject(new Error('Content script não retornou resposta. Verifique se a página SEFAZ foi carregada.'));
             }
         });
-        });
     });
 }
 
