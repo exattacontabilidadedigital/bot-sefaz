@@ -3,6 +3,44 @@ import { appState, resetEmpresasFilters, clearSelectedEmpresas } from './state.j
 import * as api from './api.js';
 import * as utils from './utils.js';
 
+// Verificar disponibilidade de extensões Chrome
+const isExtensionAvailable = async () => {
+    // Verifica se está rodando em ambiente com chrome.runtime
+    if (typeof chrome === 'undefined' || !chrome.runtime) {
+        return false;
+    }
+    
+    try {
+        // Tentar ping nas extensões conhecidas
+        const EXTENSION_IDS = [
+            'aknjpjibaoihfeeiojidhdofaldhdebd', // MessageBot
+            'gcpeajancfmmfbgkcmihpkgfcikohdmp'  // Auto Login
+        ];
+        
+        for (const extensionId of EXTENSION_IDS) {
+            try {
+                await chrome.runtime.sendMessage(extensionId, { action: 'ping' });
+                return true;
+            } catch (e) {
+                // Extensão não disponível, continuar tentando
+            }
+        }
+        return false;
+    } catch (error) {
+        return false;
+    }
+};
+
+// Ocultar botão MessageBot se extensão não disponível
+(async () => {
+    const hasExtension = await isExtensionAvailable();
+    const btn = document.getElementById('messagebot-process-btn');
+    if (btn && !hasExtension) {
+        btn.style.display = 'none';
+        console.log('ℹ️ MessageBot: Extensão não disponível - botão ocultado');
+    }
+})();
+
 export async function loadEmpresas() {
     try {
         const empresas = await api.fetchEmpresas(
